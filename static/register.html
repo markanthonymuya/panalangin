@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panalangin — Register your parish</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✦</text></svg>">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold:   #c9b97a;
+  --bg:     #f7f5f0;
+  --card:   #ffffff;
+  --border: #e2ddd4;
+  --text:   #1a1814;
+  --muted:  #7a7268;
+  --accent: #2d5a3d;
+  --accent2:#e8f0eb;
+  --danger: #c0392b;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       background: var(--bg); color: var(--text); min-height: 100vh;
+       display: flex; align-items: center; justify-content: center; padding: 2rem; }
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 440px;
+}
+.logo { font-family: Georgia, serif; font-size: 20px; color: #1a1814;
+        letter-spacing: .08em; margin-bottom: 4px; }
+.logo span { color: var(--gold); }
+h1 { font-size: 17px; font-weight: 500; margin-bottom: 4px; }
+p  { font-size: 13px; color: var(--muted); margin-bottom: 1.8rem; line-height: 1.5; }
+label { display: block; font-size: 12px; color: var(--muted);
+        letter-spacing: .04em; margin-bottom: 4px; margin-top: 14px; }
+input { width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+        border-radius: 6px; font-size: 14px; background: #fff; }
+input:focus { outline: none; border-color: var(--accent); }
+.code-input { font-family: monospace; font-size: 16px; letter-spacing: .15em;
+              text-transform: uppercase; }
+.btn { width: 100%; margin-top: 1.5rem; padding: 11px; background: var(--accent);
+       color: #fff; border: none; border-radius: 6px; font-size: 14px;
+       font-weight: 500; cursor: pointer; }
+.btn:hover { opacity: .9; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.msg { font-size: 12px; margin-top: 10px; min-height: 1.3em; }
+.msg.ok  { color: var(--accent); }
+.msg.err { color: var(--danger); }
+.divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+.login-link { text-align: center; font-size: 13px; color: var(--muted); }
+.login-link a { color: var(--accent); text-decoration: none; font-weight: 500; }
+
+.success-screen { display: none; text-align: center; }
+.success-screen .icon { font-size: 40px; margin-bottom: 1rem; color: var(--accent); }
+.success-screen h2 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+.success-screen p { margin-bottom: 1.5rem; }
+.slug-box { background: var(--accent2); border: 1px solid #b8d4be;
+            border-radius: 6px; padding: 10px 14px; font-family: monospace;
+            font-size: 13px; color: var(--accent); margin: 1rem 0; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="card">
+  <a href="/" class="logo" style="text-decoration:none">✦ Panalangin</a>
+
+  <!-- REGISTRATION FORM -->
+  <div id="form-screen">
+    <h1 style="margin-top:1.2rem">Register your parish</h1>
+    <p>You will need an access code from the Panalangin administrator to complete registration. Your parish gets 3 months free.</p>
+
+    <label>Access code</label>
+    <input type="text" id="r-code" class="code-input" placeholder="e.g. ABCD1234EF" maxlength="12">
+
+    <label>Parish name</label>
+    <input type="text" id="r-name" placeholder="e.g. St. Thomas Aquinas Parish">
+
+    <label>Admin email address</label>
+    <input type="email" id="r-email" placeholder="parish staff@yourparish.org">
+
+    <label>Password</label>
+    <input type="password" id="r-pass" placeholder="At least 8 characters">
+
+    <label>Confirm password</label>
+    <input type="password" id="r-pass2" placeholder="Repeat password">
+
+    <button class="btn" id="reg-btn" onclick="doRegister()">Register parish</button>
+    <div class="msg" id="reg-msg"></div>
+
+    <hr class="divider">
+    <div class="login-link">Already registered? <a href="/">Sign in</a></div>
+  </div>
+
+  <!-- SUCCESS SCREEN -->
+  <div class="success-screen" id="success-screen">
+    <div class="icon">✦</div>
+    <h2>Parish registered!</h2>
+    <p>Your 3-month free trial has started. Here is your display page URL — bookmark it and open it on the projector laptop before every Mass:</p>
+    <div class="slug-box" id="display-url"></div>
+    <p style="font-size:12px;color:var(--muted)">You can now sign in with your email and password.</p>
+    <a href="/" style="display:block;margin-top:1rem;padding:10px;background:var(--accent);
+       color:#fff;border-radius:6px;text-decoration:none;font-weight:500;font-size:14px;">
+      Go to dashboard →
+    </a>
+  </div>
+</div>
+
+<script>
+async function doRegister() {
+  const code  = document.getElementById('r-code').value.trim().toUpperCase();
+  const name  = document.getElementById('r-name').value.trim();
+  const email = document.getElementById('r-email').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+  const msg   = document.getElementById('reg-msg');
+  const btn   = document.getElementById('reg-btn');
+
+  msg.textContent = ''; msg.className = 'msg';
+
+  if (!code || !name || !email || !pass || !pass2) {
+    msg.textContent = 'Please fill in all fields.'; msg.className = 'msg err'; return;
+  }
+  if (pass.length < 8) {
+    msg.textContent = 'Password must be at least 8 characters.'; msg.className = 'msg err'; return;
+  }
+  if (pass !== pass2) {
+    msg.textContent = 'Passwords do not match.'; msg.className = 'msg err'; return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Registering…';
+
+  try {
+    const res  = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, parish_name: name, email, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Registration failed');
+
+    const origin = window.location.origin;
+    document.getElementById('display-url').textContent =
+      `${origin}/${data.slug}/display`;
+    document.getElementById('form-screen').style.display   = 'none';
+    document.getElementById('success-screen').style.display = 'block';
+  } catch(e) {
+    msg.textContent = e.message; msg.className = 'msg err';
+    btn.disabled = false; btn.textContent = 'Register parish';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doRegister();
+});
+</script>
+</body>
+</html>

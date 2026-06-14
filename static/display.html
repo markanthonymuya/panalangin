@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080c18">
+<title>Mass Intentions</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold:      #c9b97a;
+  --gold-dim:  #7a6e45;
+  --bg:        #080c18;
+  --bg2:       #0f1424;
+  --text:      #f0ead6;
+  --text-dim:  #8a7f6a;
+  --text-muted:#3a3628;
+}
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Georgia, 'Times New Roman', serif;
+  overflow: hidden;
+  user-select: none;
+}
+#app {
+  width: 100vw; height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 3vh 4vw;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+#header {
+  text-align: center;
+  padding-bottom: 1.5vh;
+  border-bottom: 1px solid #1e1c14;
+  position: relative; z-index: 2;
+}
+#parish-name {
+  font-size: clamp(11px, 1.4vw, 18px);
+  letter-spacing: 0.25em; text-transform: uppercase;
+  color: var(--text-dim); font-weight: 400;
+}
+#cross {
+  font-size: clamp(14px, 1.8vw, 22px);
+  color: var(--gold); margin: 0.4vh 0 0.2vh; display: block;
+}
+#category-label {
+  font-size: clamp(10px, 1.1vw, 15px);
+  letter-spacing: 0.35em; text-transform: uppercase;
+  color: var(--gold); margin-top: 0.5vh;
+}
+
+/* ── NAMES AREA ── */
+#names-area {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  position: relative; z-index: 2;
+}
+.name-slot {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; text-align: center; padding: 0 2vw;
+}
+.name-text {
+  display: block; font-weight: 400; color: var(--text);
+  letter-spacing: 0.04em; line-height: 1.15;
+  font-size: var(--name-fs, 5vh);
+  white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 92vw;
+  opacity: 0; transition: opacity 0.55s ease;
+}
+.name-text.visible { opacity: 1; }
+.name-text.empty   { opacity: 0; pointer-events: none; }
+
+/* ── FOOTER ── */
+#footer {
+  text-align: center; padding-top: 1.5vh;
+  border-top: 1px solid #1e1c14;
+  position: relative; z-index: 2;
+}
+
+#dots {
+  display: flex; gap: clamp(6px, 0.8vw, 10px);
+  justify-content: center; margin-bottom: 1.2vh;
+}
+.dot {
+  width: clamp(5px, 0.6vw, 8px); height: clamp(5px, 0.6vw, 8px);
+  border-radius: 50%; background: #1e1c14;
+  transition: background 0.4s, transform 0.3s;
+}
+.dot.active { background: var(--gold); transform: scale(1.3); }
+#timer-wrap {
+  width: min(280px, 40vw); height: 2px;
+  background: #1a1810; border-radius: 1px; margin: 0 auto 0.8vh;
+}
+#timer-bar {
+  height: 2px; background: var(--gold);
+  border-radius: 1px; width: 100%;
+  transition: width 0.08s linear;
+}
+
+/* ── CONNECTION STATUS ── */
+#conn-status {
+  font-size: clamp(8px, 0.8vw, 11px);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.conn-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+}
+.conn-dot.online  { background: #2d8a4e; }
+.conn-dot.offline { background: #8a2d2d; }
+.conn-dot.syncing { background: var(--gold);
+  animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.conn-text { color: var(--text-muted); }
+.conn-text.online  { color: #2d5a3d; }
+.conn-text.offline { color: #5a2d2d; }
+.conn-text.syncing { color: var(--gold-dim); }
+
+/* ── WIPE PANEL ── */
+#wipe-panel {
+  position: absolute; inset: 0;
+  background: var(--bg2);
+  transform: translateX(-100%);
+  z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1vh;
+  pointer-events: none;
+}
+#wipe-panel.sweep-in {
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(0);
+}
+#wipe-panel.sweep-out {
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(100%);
+}
+#wipe-cross {
+  font-size: clamp(16px, 2.5vw, 32px); color: var(--gold);
+  opacity: 0; transition: opacity 0.2s 0.15s;
+}
+#wipe-cat-text {
+  font-size: clamp(18px, 4vw, 56px);
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--gold); font-weight: 400;
+  opacity: 0; transition: opacity 0.2s 0.2s;
+}
+#wipe-panel.sweep-in #wipe-cross,
+#wipe-panel.sweep-in #wipe-cat-text { opacity: 1; }
+
+/* ── EMPTY STATE ── */
+#empty-state {
+  position: absolute; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+  color: var(--text-dim); z-index: 3;
+}
+#empty-state.show { display: flex; }
+#empty-state .empty-cross {
+  font-size: clamp(20px, 3vw, 40px); color: var(--gold); opacity: 0.4;
+  margin-bottom: 8px;
+}
+#empty-state p {
+  font-size: clamp(12px, 1.4vw, 18px);
+  letter-spacing: 0.1em; text-align: center;
+  color: var(--text-dim);
+}
+#empty-state small {
+  font-size: clamp(9px, 0.9vw, 13px);
+  color: var(--text-muted); letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+/* ── SEARCH BUTTON ── */
+#search-btn {
+  position: absolute;
+  bottom: 20px; right: 20px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(201,185,122,0.15);
+  border: 1px solid rgba(201,185,122,0.3);
+  color: var(--gold);
+  font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; transition: background 0.2s;
+  pointer-events: all;
+}
+#search-btn:hover { background: rgba(201,185,122,0.25); }
+
+/* ── SEARCH OVERLAY ── */
+#search-overlay {
+  position: fixed; inset: 0;
+  background: rgba(8,12,24,0.96);
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 5vw 40px;
+  font-family: Georgia, serif;
+}
+#search-overlay.open { display: flex; }
+
+#search-close {
+  position: absolute; top: 20px; right: 24px;
+  background: none; border: none;
+  color: var(--text-dim); font-size: 28px;
+  cursor: pointer; line-height: 1;
+}
+#search-close:hover { color: var(--gold); }
+
+#search-eyebrow {
+  font-size: 10px; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--gold);
+  margin-bottom: 1.5rem;
+}
+
+#search-wrap {
+  width: 100%; max-width: 540px;
+  position: relative; margin-bottom: 2rem;
+}
+#search-box {
+  width: 100%; padding: 14px 50px 14px 20px;
+  background: #0f1424;
+  border: 1px solid rgba(201,185,122,0.3);
+  border-radius: 10px;
+  font-family: Georgia, serif;
+  font-size: clamp(16px, 2.5vw, 22px);
+  color: var(--text);
+  outline: none;
+  letter-spacing: 0.04em;
+}
+#search-box:focus { border-color: var(--gold); }
+#search-box::placeholder { color: var(--text-muted); }
+
+#search-results {
+  width: 100%; max-width: 540px;
+  overflow-y: auto; max-height: 55vh;
+}
+.search-result-item {
+  padding: 14px 4px;
+  border-bottom: 1px solid rgba(201,185,122,0.1);
+  display: flex; justify-content: space-between;
+  align-items: baseline; gap: 12px;
+}
+.search-result-item:last-child { border-bottom: none; }
+.result-name {
+  font-size: clamp(16px, 2.5vw, 22px);
+  color: var(--text); font-weight: 400;
+}
+.result-name mark {
+  background: rgba(201,185,122,0.25);
+  color: var(--gold); border-radius: 2px;
+  padding: 0 2px;
+}
+.result-meta {
+  font-size: clamp(10px, 1.2vw, 13px);
+  color: var(--text-dim); text-align: right;
+  letter-spacing: 0.05em; flex-shrink: 0;
+}
+.result-cat {
+  font-size: clamp(9px, 1vw, 11px);
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--gold); display: block; margin-bottom: 2px;
+}
+#search-empty {
+  text-align: center; color: var(--text-dim);
+  font-size: clamp(14px, 1.8vw, 18px);
+  padding: 2rem 0; display: none;
+}
+#search-hint {
+  text-align: center; color: var(--text-muted);
+  font-size: clamp(11px, 1.2vw, 14px);
+  letter-spacing: 0.1em; margin-top: 1.5rem;
+}
+#search-count {
+  font-size: clamp(10px, 1vw, 12px);
+  color: var(--text-muted); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 1rem;
+  text-align: center; min-height: 1.4em;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="wipe-panel">
+    <span id="wipe-cross">✦</span>
+    <span id="wipe-cat-text"></span>
+  </div>
+
+  <header id="header">
+    <div id="parish-name"></div>
+    <span id="cross">✦</span>
+    <div id="category-label"></div>
+  </header>
+
+  <main id="names-area">
+    <div class="name-slot"><span class="name-text" id="n0"></span></div>
+    <div class="name-slot"><span class="name-text" id="n1"></span></div>
+    <div class="name-slot"><span class="name-text" id="n2"></span></div>
+    <div class="name-slot"><span class="name-text" id="n3"></span></div>
+    <div class="name-slot"><span class="name-text" id="n4"></span></div>
+  </main>
+
+  <footer id="footer">
+    <div id="dots"></div>
+    <div id="timer-wrap"><div id="timer-bar"></div></div>
+    <div id="conn-status">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span class="conn-text" id="conn-text">Connecting...</span>
+    </div>
+  </footer>
+</div>
+
+<div id="empty-state">
+  <div class="empty-cross">✦</div>
+  <p id="empty-msg">No intentions encoded for today.</p>
+  <small id="empty-sub">Please check back before Mass begins.</small>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const PARISH_SLUG = 'demo';
+const API_BASE    = '/api';
+const FETCH_URL   = () => `${API_BASE || '/api'}/${PARISH_SLUG}/intentions`;
+// ─────────────────────────────────────────────
+
+const ROTATE_MS   = 5000;
+const SYNC_MS     = 3 * 60 * 1000;
+const STORAGE_KEY = 'intentions_' + PARISH_SLUG;
+const ETAG_KEY    = 'intentions_etag_' + PARISH_SLUG;
+const TICK_MS     = 80;
+
+// ── State ──
+let data       = null;
+let catIdx     = 0;
+let pageIdx    = 0;
+let timerTick  = 0;
+let tickHandle = null;
+let animLock   = false;
+let hasLoaded  = false;  // true after first successful data load
+
+// ── DOM refs ──
+const parishEl   = document.getElementById('parish-name');
+const categoryEl = document.getElementById('category-label');
+
+const dotsEl     = document.getElementById('dots');
+const timerBar   = document.getElementById('timer-bar');
+const connDot    = document.getElementById('conn-dot');
+const connText   = document.getElementById('conn-text');
+const namesArea  = document.getElementById('names-area');
+const nameEls    = [0,1,2,3,4].map(i => document.getElementById('n' + i));
+const wipePanel  = document.getElementById('wipe-panel');
+const wipeCat    = document.getElementById('wipe-cat-text');
+const emptyState = document.getElementById('empty-state');
+const emptyMsg   = document.getElementById('empty-msg');
+const emptySub   = document.getElementById('empty-sub');
+
+// ── Sizing ──
+function calcFontSize() {
+  const areaH = namesArea.clientHeight;
+  const slotH = Math.floor(areaH / 5);
+  const byH   = Math.floor(slotH * 0.55);
+  const byW   = Math.floor(window.innerWidth * 0.072);
+  const fs    = Math.min(byH, byW, 88);
+  document.documentElement.style.setProperty('--name-fs', fs + 'px');
+  document.querySelectorAll('.name-slot').forEach(s => {
+    s.style.height = slotH + 'px';
+  });
+}
+
+// ── Connection status ──
+function setConn(state, msg) {
+  connDot.className  = 'conn-dot ' + state;
+  connText.className = 'conn-text ' + state;
+  connText.textContent = msg;
+}
+
+// ── Paint names ──
+function paintNames(slice) {
+  const cat = data.categories[catIdx];
+  categoryEl.textContent = cat ? cat.label : '';
+  nameEls.forEach((el, i) => {
+    el.classList.remove('visible', 'empty');
+    if (slice[i]) {
+      el.textContent = slice[i].name;
+    } else {
+      el.textContent = '';
+      el.classList.add('empty');
+    }
+  });
+  
+  buildDots();
+}
+
+function revealNames(slice) {
+  paintNames(slice);
+  nameEls.forEach((el, i) => {
+    if (slice[i]) setTimeout(() => el.classList.add('visible'), i * 70);
+  });
+}
+
+function hideNames() {
+  nameEls.forEach(el => el.classList.remove('visible'));
+}
+
+function buildDots() {
+  dotsEl.innerHTML = '';
+  if (!data || !data.categories) return;
+  data.categories.forEach((cat, i) => {
+    const d = document.createElement('div');
+    d.className   = 'dot' + (i === catIdx ? ' active' : '');
+    d.title       = cat.label;
+    dotsEl.appendChild(d);
+  });
+}
+
+// ── Transitions ──
+function transitionFade(slice) {
+  if (animLock) return;
+  animLock = true; pauseTicker();
+  hideNames();
+  setTimeout(() => {
+    revealNames(slice); resumeTicker(); animLock = false;
+  }, 380);
+}
+
+function transitionWipe(slice) {
+  if (animLock) return;
+  animLock = true; pauseTicker();
+
+  // catIdx is already the NEW category — show its label on the wipe panel
+  const newCat = data.categories[catIdx];
+  wipeCat.textContent = newCat ? newCat.label : '';
+
+  // Step 1: sweep panel IN — hides old names
+  wipePanel.className = '';
+  requestAnimationFrame(() => wipePanel.classList.add('sweep-in'));
+
+  // Step 2: while panel covers screen, silently swap names + header
+  setTimeout(() => {
+    hideNames();
+    // Update header to new category AFTER old names are hidden
+    categoryEl.textContent = newCat ? newCat.label : '';
+    buildDots();
+    // Pre-load names into slots (not visible yet)
+    nameEls.forEach((el, i) => {
+      el.classList.remove('visible', 'empty');
+      if (slice[i]) {
+        el.textContent = slice[i].name;
+      } else {
+        el.textContent = '';
+        el.classList.add('empty');
+      }
+    });
+  }, 300);
+
+  // Step 3: pause on new category name for 5 seconds, then sweep OUT
+  setTimeout(() => {
+    wipePanel.classList.remove('sweep-in');
+    wipePanel.classList.add('sweep-out');
+  }, 5000);
+
+  // Step 4: reveal names as panel exits
+  setTimeout(() => {
+    nameEls.forEach((el, i) => {
+      if (slice[i]) setTimeout(() => el.classList.add('visible'), i * 70);
+    });
+    wipePanel.className = '';
+    resumeTicker();
+    animLock = false;
+  }, 5350);
+}
+
+// ── Advance ──
+function currentSlice() {
+  if (!data || !data.categories.length) return [];
+  const cat = data.categories[catIdx];
+  if (!cat) return [];
+  return cat.intentions.slice(pageIdx * 5, pageIdx * 5 + 5);
+}
+
+function advance() {
+  if (!data || !data.categories.length) return;
+
+  const prevCat  = catIdx;
+  const cat      = data.categories[catIdx];
+  if (!cat) return;
+
+  // Total pages needed for this category
+  const totalPages = Math.ceil(cat.intentions.length / 5) || 1;
+
+  if (pageIdx < totalPages - 1) {
+    // More pages in this category — stay, show next page
+    pageIdx++;
+    transitionFade(currentSlice());
+  } else {
+    // All pages of this category shown — move to next category
+    pageIdx = 0;
+    catIdx  = (catIdx + 1) % data.categories.length;
+    transitionWipe(currentSlice());
+  }
+}
+
+// ── Timer ──
+function tick() {
+  timerTick += TICK_MS;
+  const pct = Math.max(0, 100 - (timerTick / ROTATE_MS) * 100);
+  timerBar.style.width = pct.toFixed(1) + '%';
+  if (timerTick >= ROTATE_MS) { timerTick = 0; advance(); }
+}
+function startTicker()  { if (tickHandle) clearInterval(tickHandle); timerTick = 0; tickHandle = setInterval(tick, TICK_MS); }
+function pauseTicker()  { clearInterval(tickHandle); tickHandle = null; timerBar.style.width = '100%'; timerTick = 0; }
+function resumeTicker() { startTicker(); }
+
+// ── Apply data ──
+function applyTheme(d) {
+  const root = document.documentElement;
+  if (d.theme_bg)     root.style.setProperty('--bg',       d.theme_bg);
+  if (d.theme_text)   root.style.setProperty('--text',     d.theme_text);
+  if (d.theme_accent) root.style.setProperty('--gold',     d.theme_accent);
+  if (d.theme_label)  root.style.setProperty('--gold',     d.theme_label);
+  if (d.theme_bg)     document.body.style.background = d.theme_bg;
+}
+
+function applyData(incoming, fromCache) {
+  const incomingStr = JSON.stringify(incoming);
+  const isFirstLoad = !hasLoaded;
+
+  // Save to cache always
+  try {
+    localStorage.setItem(STORAGE_KEY, incomingStr);
+    localStorage.setItem(STORAGE_KEY + '_time', Date.now().toString());
+  } catch(e) {}
+
+  if (isFirstLoad) {
+    // ── First load: set data, reset rotation, start ticker ──
+    hasLoaded = true;
+    data = incoming;
+    parishEl.textContent = data.parish || '';
+    applyTheme(data);
+    catIdx  = 0;
+    pageIdx = 0;
+    renderCurrent();
+  } else {
+    // ── Polling update: silently update data without disrupting rotation ──
+    // Clamp catIdx/pageIdx in case categories changed
+    const prevCatLabel = data && data.categories[catIdx]
+                         ? data.categories[catIdx].label : null;
+
+    data = incoming;
+    parishEl.textContent = data.parish || '';
+    applyTheme(data);
+
+    if (!data.categories || !data.categories.length) {
+      showEmpty('No intentions encoded for today.',
+                'Please check back before Mass begins.');
+      return;
+    }
+
+    // Try to keep displaying the same category by label
+    if (prevCatLabel) {
+      const sameIdx = data.categories.findIndex(c => c.label === prevCatLabel);
+      if (sameIdx !== -1) {
+        catIdx = sameIdx;
+        // Clamp pageIdx to valid range for this category
+        const total = Math.ceil(data.categories[catIdx].intentions.length / 5) || 1;
+        if (pageIdx >= total) pageIdx = 0;
+      } else {
+        // Category no longer exists — reset gracefully
+        catIdx  = 0;
+        pageIdx = 0;
+      }
+    } else {
+      catIdx  = Math.min(catIdx, data.categories.length - 1);
+      pageIdx = 0;
+    }
+    // Rotation continues naturally — no restart needed
+  }
+}
+
+function renderCurrent() {
+  if (!data || !data.categories || !data.categories.length) {
+    showEmpty('No intentions encoded for today.',
+              'Please check back before Mass begins.');
+    return;
+  }
+  emptyState.classList.remove('show');
+  // Ensure catIdx is valid
+  if (catIdx >= data.categories.length) catIdx = 0;
+  if (pageIdx >= Math.ceil((data.categories[catIdx].intentions.length || 1) / 5)) pageIdx = 0;
+  revealNames(currentSlice());
+  if (!tickHandle) startTicker();
+}
+
+function showEmpty(msg, sub) {
+  pauseTicker();
+  hideNames();
+  categoryEl.textContent = '';
+  
+  dotsEl.innerHTML       = '';
+  emptyMsg.textContent   = msg;
+  emptySub.textContent   = sub;
+  emptyState.classList.add('show');
+}
+
+// ── Load from cache ──
+function loadFromCache() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    if (!cached || !cached.categories) return false;
+    applyData(cached, true);
+    const savedTime = localStorage.getItem(STORAGE_KEY + '_time');
+    const age = savedTime ? Math.round((Date.now() - parseInt(savedTime)) / 60000) : null;
+    setConn('offline', age !== null ? `cached data · ${age}m ago` : 'cached data');
+    return true;
+  } catch(e) { return false; }
+}
+
+// ── Fetch from server ──
+async function fetchFromServer() {
+  setConn('syncing', 'syncing...');
+  try {
+    const res = await fetch(
+      FETCH_URL(),
+      { cache: 'no-store', signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    applyData(json, false);
+    const now = new Date().toLocaleTimeString('en-PH',
+      { hour: '2-digit', minute: '2-digit' });
+    setConn('online', 'online · synced ' + now);
+  } catch(e) {
+    const hasCached = loadFromCache();
+    if (!hasCached) {
+      showEmpty('Could not connect to server.',
+                'Check your internet connection.');
+    }
+    if (!navigator.onLine) {
+      setConn('offline', 'offline · using cached data');
+    } else {
+      setConn('offline', 'sync failed · using cached data');
+    }
+  }
+}
+
+// ── Offline detection ──
+window.addEventListener('online',  () => fetchFromServer());
+window.addEventListener('offline', () => setConn('offline', 'offline · using cached data'));
+
+// ── Fullscreen ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'f' || e.key === 'F') toggleFS();
+});
+document.addEventListener('dblclick', toggleFS);
+function toggleFS() {
+  if (!document.fullscreenElement)
+    document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen().catch(()=>{});
+}
+
+// ── Resize ──
+const ro = new ResizeObserver(calcFontSize);
+ro.observe(namesArea);
+window.addEventListener('resize', calcFontSize);
+
+// ── Service Worker ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+}
+
+// ── Polling — checks for updates every 10 seconds ──
+// Replaces SSE for Vercel compatibility
+function startPolling() {
+  setInterval(fetchFromServer, 10000);
+}
+
+// ── Search ──
+let searchTimer   = null;
+let searchOpen    = false;
+
+function openSearch() {
+  searchOpen = true;
+  pauseTicker();
+  const overlay = document.getElementById('search-overlay');
+  overlay.classList.add('open');
+  setTimeout(() => document.getElementById('search-box').focus(), 100);
+}
+
+function closeSearch() {
+  searchOpen = false;
+  document.getElementById('search-overlay').classList.remove('open');
+  document.getElementById('search-box').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  document.getElementById('search-empty').style.display = 'none';
+  document.getElementById('search-count').textContent   = '';
+  resumeTicker();
+}
+
+function doSearch(q) {
+  clearTimeout(searchTimer);
+  const results = document.getElementById('search-results');
+  const empty   = document.getElementById('search-empty');
+  const count   = document.getElementById('search-count');
+
+  if (!q.trim()) {
+    results.innerHTML      = '';
+    empty.style.display    = 'none';
+    count.textContent      = '';
+    return;
+  }
+
+  count.textContent = 'Searching...';
+  searchTimer = setTimeout(() => fetchSearch(q), 200);
+}
+
+async function fetchSearch(q) {
+  const results = document.getElementById('search-results');
+  const empty   = document.getElementById('search-empty');
+  const count   = document.getElementById('search-count');
+
+  try {
+    const res  = await fetch(
+      `${API_BASE}/${PARISH_SLUG}/search?q=${encodeURIComponent(q)}`,
+      { cache: 'no-store' }
+    );
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+
+    if (!data.results.length) {
+      results.innerHTML   = '';
+      empty.style.display = 'block';
+      count.textContent   = '';
+      return;
+    }
+
+    empty.style.display = 'none';
+    count.textContent   = `${data.total} intention${data.total === 1 ? '' : 's'} found`;
+
+    const esc = s => s.replace(/[-.*+?^${}()|[\]\\]/g, '\\$&');
+    const hi    = (text, q) => text.replace(
+      new RegExp('(' + esc(q) + ')', 'gi'),
+      '<mark>$1</mark>'
+    );
+
+    results.innerHTML = data.results.map(r => `
+      <div class="search-result-item">
+        <div class="result-name">${hi(r.name, q)}</div>
+        <div class="result-meta">
+          <span class="result-cat">${r.category}</span>
+          ${fmtSearchDate(r.start_date, r.end_date)}
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    count.textContent = 'Could not search — check connection.';
+  }
+}
+
+function fmtSearchDate(start, end) {
+  const s = new Date(start + 'T00:00:00');
+  const e = new Date(end   + 'T00:00:00');
+  const fmt = d => d.toLocaleDateString('en-PH', { month:'short', day:'numeric' });
+  if (start === end) return fmt(s);
+  return fmt(s) + ' – ' + fmt(e);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && searchOpen) { closeSearch(); return; }
+  if ((e.key === 'f' || e.key === 'F') && !searchOpen) { toggleFS(); return; }
+  if ((e.key === 's' || e.key === 'S') && !searchOpen) { openSearch(); return; }
+});
+
+// ── Boot ──
+(async function boot() {
+  calcFontSize();
+  setConn('syncing', 'connecting...');
+
+  // Show cached data instantly while fetching
+  const hasCached = loadFromCache();
+  if (!hasCached) {
+    showEmpty('Loading intentions...', 'Please wait.');
+  }
+
+  // Fetch fresh data on first load
+  await fetchFromServer();
+
+  // Poll every 10 seconds for updates
+  // Works on Vercel serverless — no persistent connection needed
+  startPolling();
+})();
+</script>
+<!-- ── SEARCH BUTTON ── -->
+<button id="search-btn" onclick="openSearch()" title="Search intentions">&#9906;</button>
+
+<!-- ── SEARCH OVERLAY ── -->
+<div id="search-overlay">
+  <button id="search-close" onclick="closeSearch()">&#215;</button>
+  <div id="search-eyebrow">✦ Search mass intentions this week</div>
+  <div id="search-wrap">
+    <input type="text" id="search-box"
+      placeholder="Type a name..."
+      oninput="doSearch(this.value)"
+      autocomplete="off" autocorrect="off" spellcheck="false">
+  </div>
+  <div id="search-count"></div>
+  <div id="search-results"></div>
+  <div id="search-empty">No intentions found for that name.</div>
+  <div id="search-hint">Showing intentions active within this week</div>
+</div>
+
+</body>
+</html>

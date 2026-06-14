@@ -1,0 +1,2717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panalangin — Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✦</text></svg>">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --gold:   #c9b97a;
+  --bg:     #f7f5f0;
+  --card:   #ffffff;
+  --border: #e2ddd4;
+  --text:   #1a1814;
+  --muted:  #7a7268;
+  --accent: #2d5a3d;
+  --accent2:#e8f0eb;
+  --danger: #c0392b;
+  --danger2:#fdf0ee;
+  --radius: 10px;
+  --fs:     14px;
+}
+
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       background: var(--bg); color: var(--text); font-size: var(--fs); min-height: 100vh; }
+
+/* ── LOGIN SCREEN ── */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center;
+  justify-content: center; background: var(--bg);
+}
+.login-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 2rem 2.5rem;
+  width: 100%; max-width: 380px;
+}
+.login-card h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+.login-card p  { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
+.login-card label { display: block; font-size: 12px; color: var(--muted);
+                    letter-spacing: .04em; margin-bottom: 4px; margin-top: 14px; }
+.login-card input { width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+                    border-radius: 6px; font-size: 14px; background: #fff; }
+.login-card input:focus { outline: none; border-color: var(--accent); }
+.btn-primary { width: 100%; margin-top: 1.2rem; padding: 10px; background: var(--accent);
+               color: #fff; border: none; border-radius: 6px; font-size: 14px;
+               font-weight: 500; cursor: pointer; }
+.btn-primary:hover { opacity: .9; }
+#login-error { font-size: 12px; color: var(--danger); margin-top: 8px; min-height: 1.2em; }
+
+/* ── APP SHELL ── */
+#app { display: none; }
+
+/* ── TOPBAR ── */
+#topbar {
+  background: #1a1814; color: #f0ead6;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.5rem; height: 52px; position: sticky; top: 0; z-index: 100;
+}
+#topbar .logo { font-family: Georgia, serif; font-size: 16px;
+                letter-spacing: .08em; color: var(--gold); }
+#topbar .parish-name { font-size: 12px; color: #8a7f6a; letter-spacing: .05em; }
+#topbar .logout-btn { background: none; border: 1px solid #3a3628; color: #8a7f6a;
+                      padding: 5px 12px; border-radius: 5px; font-size: 12px;
+                      cursor: pointer; letter-spacing: .04em; }
+#topbar .logout-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ── NAV TABS ── */
+#nav {
+  display: flex; gap: 2px; padding: 1rem 1.5rem 0;
+  border-bottom: 1px solid var(--border); background: var(--card);
+}
+.tab-btn {
+  padding: 8px 20px; border: none; background: none; font-size: 13px;
+  color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; font-weight: 400; letter-spacing: .02em;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent);
+                  font-weight: 500; }
+.tab-btn:hover:not(.active) { color: var(--text); }
+
+/* ── MAIN CONTENT ── */
+#content { padding: 1.5rem; max-width: 900px; }
+
+/* ── SECTION HEADERS ── */
+.section-title { font-size: 16px; font-weight: 500; margin-bottom: .3rem; }
+.section-sub   { font-size: 12px; color: var(--muted); margin-bottom: 1.2rem; }
+
+/* ── TODAY VIEW ── */
+.cat-block { margin-bottom: 1.5rem; }
+.cat-heading {
+  font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--muted); padding: 6px 0 8px;
+  border-bottom: 1px solid var(--border); margin-bottom: 8px;
+}
+.today-name-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 6px 4px; border-bottom: 1px solid #f0ede7; font-size: 14px;
+}
+.today-name-row .name { font-weight: 500; }
+.today-name-row .meta { font-size: 12px; color: var(--muted); }
+.today-empty { font-size: 13px; color: var(--muted); font-style: italic; padding: 8px 4px; }
+
+/* ── ADD FORM ── */
+.form-card { background: var(--card); border: 1px solid var(--border);
+             border-radius: var(--radius); padding: 1.5rem; max-width: 520px; }
+.form-row { margin-bottom: 1rem; }
+.form-row label { display: block; font-size: 12px; color: var(--muted);
+                  letter-spacing: .04em; margin-bottom: 4px; }
+.form-row input,
+.form-row select { width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+                   border-radius: 6px; font-size: 14px; background: #fff; }
+.form-row input:focus,
+.form-row select:focus { outline: none; border-color: var(--accent); }
+.form-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.btn-submit { padding: 9px 24px; background: var(--accent); color: #fff; border: none;
+              border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.btn-submit:hover { opacity: .9; }
+#form-msg { font-size: 12px; margin-top: 8px; min-height: 1.3em; }
+#form-msg.ok  { color: var(--accent); }
+#form-msg.err { color: var(--danger); }
+
+/* ── MANAGE TABLE ── */
+.filter-row { display: flex; gap: 10px; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.filter-row label { font-size: 12px; color: var(--muted); }
+.filter-row input { padding: 7px 10px; border: 1px solid var(--border);
+                    border-radius: 6px; font-size: 13px; }
+.filter-row button { padding: 7px 16px; border: 1px solid var(--border);
+                     border-radius: 6px; font-size: 13px; background: var(--card);
+                     cursor: pointer; }
+.filter-row button:hover { background: var(--accent2); border-color: var(--accent); }
+
+.intentions-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.intentions-table th {
+  text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 500;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--border); background: var(--bg);
+}
+.intentions-table td { padding: 9px 10px; border-bottom: 1px solid #f0ede7;
+                       vertical-align: middle; }
+.intentions-table tr:hover td { background: #faf8f4; }
+.badge {
+  display: inline-block; font-size: 11px; padding: 2px 8px;
+  border-radius: 20px; background: var(--accent2); color: var(--accent);
+  font-weight: 500; white-space: nowrap;
+}
+.date-range { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.btn-edit, .btn-del {
+  padding: 4px 10px; border-radius: 5px; font-size: 12px;
+  cursor: pointer; border: 1px solid; margin-left: 4px;
+}
+.btn-edit { background: var(--accent2); border-color: var(--accent); color: var(--accent); }
+.btn-del  { background: var(--danger2); border-color: #e8bab6;       color: var(--danger); }
+.btn-edit:hover { background: #d0e6d6; }
+.btn-del:hover  { background: #f5d0cb; }
+#table-empty { font-size: 13px; color: var(--muted); font-style: italic;
+               padding: 16px 10px; display: none; }
+
+/* ── EDIT MODAL ── */
+#modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 200;
+  align-items: center; justify-content: center;
+}
+#modal-overlay.open { display: flex; }
+.modal-card { background: var(--card); border-radius: var(--radius);
+              padding: 1.5rem; width: 100%; max-width: 480px;
+              border: 1px solid var(--border); }
+.modal-card h2 { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem; }
+.btn-cancel { padding: 8px 18px; background: var(--bg); border: 1px solid var(--border);
+              border-radius: 6px; font-size: 13px; cursor: pointer; }
+.btn-save   { padding: 8px 18px; background: var(--accent); color: #fff; border: none;
+              border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.search-row { display:flex; gap:8px; margin-bottom:1rem; }
+.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+.sortable:hover { color:var(--accent); }
+.sortable.active { color:var(--accent); }
+.sort-icon { font-size:10px; opacity:0.5; margin-left:3px; }
+.sortable.active .sort-icon { opacity:1; }
+.search-row input { flex:1; padding:8px 12px; border:1px solid var(--border);
+                    border-radius:6px; font-size:13px; }
+.search-row input:focus { outline:none; border-color:var(--accent); }
+.search-row button { padding:7px 14px; border:1px solid var(--border); border-radius:6px;
+                     font-size:12px; background:var(--card); cursor:pointer; color:var(--muted); }
+.search-row button:hover { background:var(--accent2); border-color:var(--accent); }
+.filter-quick { padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+                font-size: 12px; background: var(--card); cursor: pointer; color: var(--muted); }
+.filter-quick:hover { background: var(--accent2); border-color: var(--accent); color: var(--accent); }
+.filter-quick.active { background: var(--accent2); border-color: var(--accent);
+                       color: var(--accent); font-weight: 500; }
+.month-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem;
+             font-size: 14px; }
+.month-nav button { padding: 5px 14px; border: 1px solid var(--border); border-radius: 6px;
+                    background: var(--card); cursor: pointer; font-size: 13px; }
+.month-nav button:hover { background: var(--accent2); border-color: var(--accent); }
+.month-nav span { font-weight: 500; min-width: 140px; text-align: center; }
+
+/* ── TRIAL BANNER ── */
+#trial-banner {
+  display: none; padding: 10px 1.5rem; font-size: 13px;
+  align-items: center; justify-content: space-between; gap: 12px;
+}
+#trial-banner.warning  { display:flex; background:#fef9ec; border-bottom: 1px solid #f5e4a0; color:#856404; }
+#trial-banner.locked   { display:flex; background:#fdf0ee; border-bottom: 1px solid #f5c4b3; color:#7a1a0e; }
+#trial-banner strong   { font-weight: 500; }
+#trial-banner a        { color: inherit; font-weight: 500; text-decoration: underline; cursor: pointer; }
+
+/* ── SUPERADMIN TABS ── */
+.tab-divider { width: 1px; background: var(--border); margin: 6px 4px; }
+.sa-badge { font-size: 10px; background: #fff3cd; color: #856404;
+            padding: 1px 6px; border-radius: 10px; margin-left: 4px;
+            font-weight: 500; vertical-align: middle; }
+
+/* ── SUPERADMIN PANELS ── */
+.sa-section-title { font-size: 15px; font-weight: 500; margin-bottom: .3rem; }
+.sa-section-sub   { font-size: 12px; color: var(--muted); margin-bottom: 1.2rem; }
+.code-card { background: var(--bg); border: 1px solid var(--border);
+             border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;
+             display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.code-str  { font-family: monospace; font-size: 16px; letter-spacing: .1em;
+             color: var(--accent); font-weight: 500; }
+.code-meta { font-size: 12px; color: var(--muted); }
+.code-avail  { color: var(--accent); }
+.code-used   { color: var(--muted);  text-decoration: line-through; }
+.parishes-table { width:100%; border-collapse:collapse; font-size:13px; }
+.parishes-table th { text-align:left; padding:8px 10px; font-size:11px; font-weight:500;
+  letter-spacing:.05em; text-transform:uppercase; color:var(--muted);
+  border-bottom:1px solid var(--border); background:var(--bg); }
+.parishes-table td { padding:9px 10px; border-bottom:1px solid #f0ede7; vertical-align:middle; }
+.plan-badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px;
+              font-weight:500; white-space:nowrap; }
+.plan-trial    { background:#e8f0eb; color:#2d5a3d; }
+.msg-card { background:var(--card); border:1px solid var(--border);
+            border-radius:10px; padding:1.2rem 1.4rem;
+            margin-bottom:10px; }
+.msg-card.unread  { border-left:3px solid var(--accent); }
+.msg-card.read    { border-left:3px solid var(--border); }
+.msg-card.replied { border-left:3px solid #2d8a4e; }
+.msg-header { display:flex; justify-content:space-between;
+              align-items:flex-start; gap:12px; margin-bottom:8px; }
+.msg-subject { font-size:14px; font-weight:500; }
+.msg-meta { font-size:11px; color:var(--muted); margin-bottom:8px; }
+.msg-body { font-size:13px; color:var(--text); line-height:1.6;
+            white-space:pre-wrap; margin-bottom:10px; }
+.msg-reply { background:var(--accent2); border-left:3px solid var(--accent);
+             padding:10px 12px; border-radius:0 6px 6px 0;
+             font-size:13px; line-height:1.6; margin-top:8px; }
+.msg-reply-label { font-size:11px; color:var(--accent); font-weight:500;
+                   margin-bottom:4px; letter-spacing:.04em; }
+.cat-pill {
+  display:inline-block; font-size:10px; padding:2px 8px;
+  border-radius:12px; font-weight:500; margin-right:6px;
+}
+.cat-general    { background:#e8f0eb; color:#2d5a3d; }
+.cat-suggestion { background:#e8eef8; color:#1a3a7a; }
+.cat-issue      { background:#fdf0ee; color:#8a2d1a; }
+.cat-assistance { background:#fef9ec; color:#856404; }
+.reply-form { margin-top:10px; }
+.reply-form textarea {
+  width:100%; padding:8px 10px; border:1px solid var(--border);
+  border-radius:6px; font-size:13px; resize:vertical;
+  font-family:inherit; margin-bottom:6px;
+}
+.req-card { background:var(--card); border:1px solid var(--border);
+            border-radius:10px; padding:1.2rem 1.4rem;
+            margin-bottom:10px; }
+.req-card.pending  { border-left:3px solid var(--accent); }
+.req-card.approved { border-left:3px solid #2d8a4e; }
+.req-card.rejected { border-left:3px solid var(--danger); }
+.req-header { display:flex; justify-content:space-between;
+              align-items:flex-start; gap:12px; margin-bottom:10px; }
+.req-parish { font-size:15px; font-weight:500; }
+.req-status { font-size:11px; padding:2px 10px; border-radius:20px;
+              font-weight:500; white-space:nowrap; }
+.req-status.pending  { background:#fef9ec; color:#856404; }
+.req-status.approved { background:#d4edda; color:#155724; }
+.req-status.rejected { background:var(--danger2); color:var(--danger); }
+.req-details { display:grid; grid-template-columns:1fr 1fr;
+               gap:4px 16px; font-size:12px; color:var(--muted);
+               margin-bottom:12px; }
+.req-details strong { color:var(--text); }
+.req-code { font-family:monospace; font-size:14px; font-weight:500;
+            color:var(--accent); background:var(--accent2);
+            padding:4px 10px; border-radius:6px;
+            display:inline-block; margin-bottom:8px; }
+.req-actions { display:flex; gap:8px; }
+.plan-active   { background:#d4edda; color:#155724; }
+.plan-grace    { background:#fef9ec; color:#856404; }
+.plan-suspended{ background:#fdf0ee; color:#7a1a0e; }
+.gen-form { background:var(--card); border:1px solid var(--border);
+            border-radius:10px; padding:1.2rem; max-width:480px; margin-bottom:1.5rem; }
+.gen-form .form-row { margin-bottom:.8rem; }
+.gen-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.slug-ok  { color: #2d5a3d; font-weight:500; }
+.name-tag {
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--accent2); color:var(--accent);
+  border:1px solid #b8d4be; border-radius:20px;
+  padding:4px 10px; font-size:13px; margin:3px;
+}
+.name-tag button {
+  background:none; border:none; cursor:pointer;
+  color:var(--accent); font-size:14px; line-height:1;
+  padding:0; opacity:0.6;
+}
+.name-tag button:hover { opacity:1; }
+.preset-btn {
+  padding:5px 12px; border-radius:20px; font-size:12px;
+  border:none; cursor:pointer; font-weight:500;
+  transition:opacity 0.2s;
+}
+.preset-btn:hover { opacity:0.8; }
+/* ── PAYMENT MODAL ── */
+.modal-overlay-pay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 300;
+  align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.modal-overlay-pay.open { display: flex; }
+.pay-modal {
+  background: var(--card); border-radius: 14px;
+  padding: 2rem; width: 100%; max-width: 420px;
+  border: 1px solid var(--border); text-align: center;
+}
+.pay-modal h2 { font-size: 17px; font-weight: 500; margin-bottom: 4px; }
+.pay-modal .pay-sub { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
+.pay-plans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem; }
+.pay-plan-btn {
+  border: 2px solid var(--border); border-radius: 10px;
+  padding: 14px 10px; cursor: pointer; background: var(--card);
+  transition: border-color .2s, background .2s; text-align: center;
+}
+.pay-plan-btn:hover { border-color: var(--accent); background: var(--accent2); }
+.pay-plan-btn.selected { border-color: var(--accent); background: var(--accent2); }
+.pay-plan-btn .plan-name { font-size: 12px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.pay-plan-btn .plan-price { font-size: 22px; font-weight: 500; color: var(--text); }
+.pay-plan-btn .plan-period { font-size: 11px; color: var(--muted); }
+.pay-plan-btn .plan-save { font-size: 11px; color: var(--accent);
+  font-weight: 500; margin-top: 2px; }
+.pay-divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+.qr-wrap { margin: 0 auto 1rem;
+  width: 200px; height: 260px;
+  border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; background: #0070e0;
+  display: flex; align-items: center; justify-content: center;
+}
+.qr-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.qr-label { font-size: 12px; color: var(--muted); margin-bottom: 1rem; }
+.pay-amount-badge {
+  display: inline-block; background: var(--accent2);
+  color: var(--accent); border: 1px solid #b8d4be;
+  border-radius: 20px; padding: 4px 16px;
+  font-size: 15px; font-weight: 500; margin-bottom: 1.2rem;
+}
+.pay-steps { text-align: left; font-size: 13px;
+  color: var(--muted); margin-bottom: 1.2rem; line-height: 1.8; }
+.pay-steps strong { color: var(--text); }
+#pay-ref-row { display: none; }
+#pay-ref-row.show { display: block; }
+.pay-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem; }
+.tut-highlight {
+  outline: 2px solid #c9b97a !important;
+  outline-offset: 3px !important;
+  border-radius: 6px !important;
+  position: relative;
+  z-index: 502;
+}
+.slug-err { color: var(--danger); font-weight:500; }
+.history-row { display:flex; justify-content:space-between; font-size:12px;
+               padding:5px 0; border-bottom:1px solid #f0ede7; color:var(--muted); }
+.history-row span { font-family:monospace; color:var(--text); }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Panalangin</h1>
+    <p>Sign in to manage your parish intentions</p>
+    <label>Email address</label>
+    <input type="email" id="login-email" placeholder="staff@yourparish.org" autocomplete="username">
+    <label>Password</label>
+    <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+    <button class="btn-primary" onclick="doLogin()">Sign in</button>
+    <div id="login-error"></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:1.2rem 0">
+    <p style="text-align:center;font-size:13px;color:var(--muted)">New parish? <a href="/static/register.html" style="color:var(--accent);font-weight:500;text-decoration:none">Register here →</a></p>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+
+  <div id="topbar">
+    <a href="/" class="logo" style="text-decoration:none">✦ Panalangin</a>
+    <span class="parish-name" id="parish-display"></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="logout-btn parish-only" id="view-display-btn"
+        onclick="openDisplay()"
+        style="background:#c9b97a;border-color:#c9b97a;color:#1a1814;display:none">
+        ▶ View display
+      </button>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <div id="trial-banner"></div>
+<div id="nav">
+    <button class="tab-btn parish-only active" onclick="showTab('today')">Today</button>
+    <button class="tab-btn parish-only"        onclick="showTab('add')" id="tab-btn-add">Add intention</button>
+    <button class="tab-btn parish-only"        onclick="showTab('manage')">Manage</button>
+    <button class="tab-btn parish-only"        onclick="showTab('settings')">Settings</button>
+    <button class="tab-btn parish-only"        onclick="showTab('theme')">Theme</button>
+    <button class="tab-btn admin-only"          onclick="showTab('users')" id="tab-btn-users" style="display:none">Users</button>
+    <button class="tab-btn parish-only"        onclick="showTab('messages')" id="tab-btn-messages" style="display:none">Messages</button>
+    <div class="tab-divider" id="sa-divider" style="display:none"></div>
+    <button class="tab-btn" id="tab-btn-requests"  onclick="showTab('requests')"  style="display:none">Requests <span class="sa-badge" id="req-badge" style="display:none">0</span> <span class="sa-badge">SA</span></button>
+    <button class="tab-btn" id="tab-btn-payments"  onclick="showTab('payments')"  style="display:none">Payments <span class="sa-badge" id="pay-badge" style="display:none">0</span> <span class="sa-badge">SA</span></button>
+    <button class="tab-btn" id="tab-btn-parishes"  onclick="showTab('parishes')"  style="display:none">Parishes <span class="sa-badge">SA</span></button>
+    <button class="tab-btn" id="tab-btn-codes"     onclick="showTab('codes')"     style="display:none">Access codes <span class="sa-badge">SA</span></button>
+    <button class="tab-btn" id="tab-btn-inbox"     onclick="showTab('inbox')"     style="display:none">Inbox <span class="sa-badge" id="inbox-badge" style="display:none">0</span> <span class="sa-badge">SA</span></button>
+  </div>
+
+  <div id="content">
+
+    <!-- TODAY TAB -->
+    <div id="tab-today" class="parish-only">
+      <div class="section-title" id="today-heading"></div>
+      <div class="section-sub">All intentions active for today's Mass</div>
+      <div id="today-body"></div>
+    </div>
+
+    <!-- ADD TAB -->
+    <div id="tab-add" class="parish-only" style="display:none">
+      <div class="section-title">Add intention</div>
+      <div class="section-sub">Parish staff can encode multiple names per offeror — add all before saving</div>
+      <div class="form-card" style="max-width:560px">
+        <div class="form-row">
+          <label>Offered by</label>
+          <input type="text" id="f-offered" placeholder="e.g. Lourdes Reyes">
+        </div>
+        <div class="form-row">
+          <label>Intention type</label>
+          <select id="f-cat"></select>
+        </div>
+        <div class="form-row form-dates">
+          <div>
+            <label>Start date</label>
+            <input type="date" id="f-start">
+          </div>
+          <div>
+            <label>End date</label>
+            <input type="date" id="f-end">
+          </div>
+        </div>
+
+        <div style="margin-top:1.2rem">
+          <label style="font-size:12px;color:var(--muted);letter-spacing:.04em">
+            Names to include
+          </label>
+          <div id="names-list" style="margin-top:6px"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input type="text" id="f-name-input"
+              placeholder="Type a name and press Add"
+              style="flex:1"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();addNameToList()}">
+            <button onclick="addNameToList()" class="btn-submit"
+              style="padding:8px 16px;margin:0;white-space:nowrap">+ Add name</button>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">
+            Names will be sorted alphabetically on the display screen.
+          </div>
+        </div>
+
+        <button class="btn-submit" onclick="submitIntention()"
+          style="margin-top:1.2rem;width:100%">Save all intentions</button>
+        <div id="form-msg"></div>
+      </div>
+    </div>
+
+    <!-- MANAGE TAB -->
+    <div id="tab-manage" class="parish-only" style="display:none">
+      <div class="section-title">Manage intentions</div>
+      <div class="section-sub">View, edit, or delete encoded intentions</div>
+      <div class="filter-row">
+        <button class="filter-quick active" id="btn-week"  onclick="setQuick('week')">This week</button>
+        <button class="filter-quick"        id="btn-month" onclick="setQuick('month')">This month</button>
+        <button class="filter-quick"        id="btn-all"   onclick="setQuick('all')">All</button>
+        <span style="margin-left:8px;color:var(--muted);font-size:12px">or</span>
+        <label style="margin-left:8px">From</label>
+        <input type="date" id="filter-start">
+        <label>To</label>
+        <input type="date" id="filter-end">
+        <button onclick="loadManage()" style="margin-left:4px">Filter</button>
+      </div>
+      <div class="month-nav" id="month-nav" style="display:none">
+        <button onclick="navMonth(-1)">&#8592; Prev</button>
+        <span id="month-label"></span>
+        <button onclick="navMonth(1)">Next &#8594;</button>
+      </div>
+      <div class="search-row">
+        <input type="text" id="search-input" placeholder="Search by name or offeror..." oninput="renderManageFiltered()">
+        <button onclick="document.getElementById('search-input').value=''; renderManageFiltered()">Clear</button>
+      </div>
+      <table class="intentions-table">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortManage('name')" id="th-name">
+              Name <span class="sort-icon" id="si-name">↕</span>
+            </th>
+            <th class="sortable" onclick="sortManage('offered_by')" id="th-offered_by">
+              Offered by <span class="sort-icon" id="si-offered_by">↕</span>
+            </th>
+            <th class="sortable" onclick="sortManage('category')" id="th-category">
+              Category <span class="sort-icon" id="si-category">↕</span>
+            </th>
+            <th>Dates</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="manage-tbody"></tbody>
+      </table>
+      <div id="table-empty">No intentions found for the selected period.</div>
+    </div>
+
+    <!-- THEME TAB -->
+    <div id="tab-theme" class="parish-only" style="display:none">
+      <div class="section-title">Parish theme</div>
+      <div class="section-sub">Customize the display screen and dashboard colors to match your parish identity</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:640px">
+
+        <!-- Display theme -->
+        <div class="form-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">
+            Display screen colors
+          </div>
+          <div class="form-row">
+            <label>Background color</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" id="t-bg" value="#080c18"
+                oninput="previewTheme()" style="width:48px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer">
+              <input type="text"  id="t-bg-hex" value="#080c18"
+                oninput="syncColor('t-bg','t-bg-hex')"
+                style="flex:1;font-family:monospace" maxlength="7">
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Name text color</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" id="t-text" value="#f0ead6"
+                oninput="previewTheme()" style="width:48px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer">
+              <input type="text"  id="t-text-hex" value="#f0ead6"
+                oninput="syncColor('t-text','t-text-hex')"
+                style="flex:1;font-family:monospace" maxlength="7">
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Accent color (cross, dots, timer)</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" id="t-accent" value="#c9b97a"
+                oninput="previewTheme()" style="width:48px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer">
+              <input type="text"  id="t-accent-hex" value="#c9b97a"
+                oninput="syncColor('t-accent','t-accent-hex')"
+                style="flex:1;font-family:monospace" maxlength="7">
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Category label color</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" id="t-label" value="#c9b97a"
+                oninput="previewTheme()" style="width:48px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer">
+              <input type="text"  id="t-label-hex" value="#c9b97a"
+                oninput="syncColor('t-label','t-label-hex')"
+                style="flex:1;font-family:monospace" maxlength="7">
+            </div>
+          </div>
+        </div>
+
+        <!-- Dashboard theme -->
+        <div class="form-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">
+            Dashboard colors
+          </div>
+          <div class="form-row">
+            <label>Dashboard accent color</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" id="t-dash" value="#2d5a3d"
+                oninput="previewTheme()" style="width:48px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer">
+              <input type="text"  id="t-dash-hex" value="#2d5a3d"
+                oninput="syncColor('t-dash','t-dash-hex')"
+                style="flex:1;font-family:monospace" maxlength="7">
+            </div>
+          </div>
+
+          <!-- Preview mini display -->
+          <div style="margin-top:1.2rem">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Display preview</div>
+            <div id="theme-preview" style="border-radius:8px;padding:14px;text-align:center;
+              font-family:Georgia,serif;transition:all 0.3s">
+              <div id="prev-cross" style="font-size:14px;margin-bottom:4px">✦</div>
+              <div id="prev-cat"
+                style="font-size:9px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px">
+                Thanksgiving
+              </div>
+              <div id="prev-name1" style="font-size:15px;margin-bottom:3px">Reyes Family</div>
+              <div id="prev-name2" style="font-size:15px;margin-bottom:3px">Santos Family</div>
+              <div id="prev-name3" style="font-size:15px;opacity:0.7">dela Cruz Family</div>
+            </div>
+          </div>
+
+          <!-- Presets -->
+          <div style="margin-top:1rem">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Presets</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="preset-btn" onclick="applyPreset('classic')"
+                style="background:#080c18;color:#c9b97a">Classic</button>
+              <button class="preset-btn" onclick="applyPreset('light')"
+                style="background:#f7f5f0;color:#2d5a3d">Light</button>
+              <button class="preset-btn" onclick="applyPreset('royal')"
+                style="background:#0d1b4e;color:#e8d48b">Royal</button>
+              <button class="preset-btn" onclick="applyPreset('rose')"
+                style="background:#1a0a0e;color:#e8a0b0">Rose</button>
+              <button class="preset-btn" onclick="applyPreset('forest')"
+                style="background:#0a1a0d;color:#7ec88a">Forest</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:1.2rem;max-width:640px;display:flex;gap:10px;align-items:center">
+        <button class="btn-submit" onclick="saveTheme()">Save theme</button>
+        <button onclick="applyPreset('classic')"
+          style="padding:9px 18px;border:1px solid var(--border);border-radius:6px;
+          background:var(--card);font-size:13px;cursor:pointer">Reset to default</button>
+        <div id="theme-msg" style="font-size:12px;min-height:1.2em"></div>
+      </div>
+    </div>
+
+    <!-- USERS TAB -->
+    <div id="tab-users" class="admin-only" style="display:none">
+      <div class="section-title">Parish staff accounts</div>
+      <div class="section-sub">Manage access for your Social Communications Ministry staff</div>
+      <div class="form-card" style="max-width:480px;margin-bottom:1.5rem">
+        <div style="font-size:13px;font-weight:500;margin-bottom:12px">Add new parish staff</div>
+        <div class="form-row">
+          <label>Email address</label>
+          <input type="email" id="u-email" placeholder="parish staff@yourparish.org">
+        </div>
+        <div class="form-row">
+          <label>Temporary password</label>
+          <input type="password" id="u-pass" placeholder="At least 8 characters">
+        </div>
+        <button class="btn-submit" onclick="createStaffAccount()" style="margin-top:10px">Create account</button>
+        <div id="u-msg" style="font-size:12px;margin-top:8px;min-height:1.2em"></div>
+      </div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:10px">Active parish staff members</div>
+      <table class="intentions-table">
+        <thead><tr>
+          <th>Email</th><th>Status</th><th>Created</th><th></th>
+        </tr></thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+      <div id="users-empty" style="font-size:13px;color:var(--muted);font-style:italic;padding:12px 4px;display:none">
+        No parish staff accounts yet.
+      </div>
+    </div>
+
+    <!-- MESSAGES TAB (parish) -->
+    <div id="tab-messages" class="parish-only" style="display:none">
+      <div class="section-title">Messages</div>
+      <div class="section-sub">Send a message to the Panalangin team for help, suggestions, or feedback</div>
+
+      <!-- Compose form -->
+      <div class="form-card" style="max-width:560px;margin-bottom:1.5rem">
+        <div style="font-size:13px;font-weight:500;margin-bottom:14px">New message</div>
+        <div class="form-row">
+          <label>Category</label>
+          <select id="msg-cat">
+            <option value="general">General inquiry</option>
+            <option value="suggestion">Suggestion</option>
+            <option value="issue">Report an issue</option>
+            <option value="assistance">Request assistance</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Subject</label>
+          <input type="text" id="msg-subject" placeholder="Brief description of your message">
+        </div>
+        <div class="form-row">
+          <label>Message</label>
+          <textarea id="msg-body" rows="5"
+            placeholder="Describe your concern, suggestion, or question in detail..."
+            style="width:100%;padding:9px 12px;border:1px solid var(--border);
+            border-radius:6px;font-size:14px;resize:vertical;
+            font-family:inherit"></textarea>
+        </div>
+        <button class="btn-submit" onclick="sendMessage()" style="margin-top:8px">Send message</button>
+        <div id="msg-send-status" style="font-size:12px;margin-top:8px;min-height:1.2em"></div>
+      </div>
+
+      <!-- Message history -->
+      <div style="font-size:13px;font-weight:500;margin-bottom:10px">Sent messages</div>
+      <div id="my-messages-list">
+        <p style="font-size:13px;color:var(--muted);font-style:italic">Loading...</p>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings" class="parish-only" style="display:none">
+      <div class="section-title">Parish settings</div>
+      <div class="section-sub">Manage your display URL</div>
+      <div class="form-card" style="max-width:520px">
+        <div class="form-row">
+          <label>Parish name</label>
+          <input type="text" id="s-parish-name" disabled style="background:var(--bg);color:var(--muted)">
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Contact the platform administrator to change your parish name.</div>
+        </div>
+        <div class="form-row" style="margin-top:1.2rem">
+          <label>Display URL slug</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:13px;color:var(--muted);white-space:nowrap" id="s-origin"></span>
+            <input type="text" id="s-slug" placeholder="your-parish-name" oninput="checkSlug()" style="flex:1;font-family:monospace">
+          </div>
+          <div id="s-slug-status" style="font-size:12px;margin-top:6px;min-height:1.3em"></div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;background:var(--bg);padding:8px 10px;border-radius:6px">
+          Your current display URL:<br>
+          <strong id="s-current-url" style="font-family:monospace;color:var(--accent);word-break:break-all"></strong>
+        </div>
+        <button class="btn-submit" id="s-save-btn" onclick="saveSlug()" style="margin-top:1.2rem" disabled>Save new URL</button>
+        <div id="s-save-msg" style="font-size:12px;margin-top:8px;min-height:1.3em"></div>
+        <div id="s-history" style="margin-top:1.5rem;display:none">
+          <div style="font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.04em;margin-bottom:8px">Change history</div>
+          <div id="s-history-list"></div>
+        </div>
+      </div>
+
+      <!-- Change own password -->
+      <div class="form-card" style="max-width:520px;margin-top:1.5rem">
+        <div style="font-size:13px;font-weight:500;margin-bottom:14px">Change your password</div>
+        <div class="form-row">
+          <label>Current password</label>
+          <input type="password" id="pw-current" placeholder="Your current password">
+        </div>
+        <div class="form-row">
+          <label>New password</label>
+          <input type="password" id="pw-new" placeholder="At least 8 characters">
+        </div>
+        <div class="form-row">
+          <label>Confirm new password</label>
+          <input type="password" id="pw-confirm" placeholder="Repeat new password">
+        </div>
+        <button class="btn-submit" onclick="changeOwnPassword()" style="margin-top:8px">Update password</button>
+        <div id="pw-msg" style="font-size:12px;margin-top:8px;min-height:1.2em"></div>
+      </div>
+    </div>
+
+    <!-- PAYMENTS TAB -->
+    <div id="tab-payments" style="display:none">
+      <div class="sa-section-title">Payment submissions</div>
+      <div class="sa-section-sub">GCash payments submitted by parishes awaiting confirmation</div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem">
+        <button class="filter-quick active" id="pay-btn-pending"  onclick="loadPayments('pending')">Pending</button>
+        <button class="filter-quick"        id="pay-btn-confirmed" onclick="loadPayments('confirmed')">Confirmed</button>
+        <button class="filter-quick"        id="pay-btn-rejected"  onclick="loadPayments('rejected')">Rejected</button>
+        <button class="filter-quick"        id="pay-btn-all"       onclick="loadPayments('')">All</button>
+      </div>
+      <div id="payments-list"></div>
+    </div>
+
+    <!-- REQUESTS TAB -->
+    <div id="tab-requests" style="display:none">
+      <div class="sa-section-title">Registration requests</div>
+      <div class="sa-section-sub">Parishes requesting an access code to join Panalangin</div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem">
+        <button class="filter-quick active" id="req-btn-pending"  onclick="loadRequests('pending')">Pending</button>
+        <button class="filter-quick"        id="req-btn-approved" onclick="loadRequests('approved')">Approved</button>
+        <button class="filter-quick"        id="req-btn-rejected" onclick="loadRequests('rejected')">Rejected</button>
+        <button class="filter-quick"        id="req-btn-all"      onclick="loadRequests('')">All</button>
+      </div>
+      <div id="requests-list"></div>
+    </div>
+
+    <!-- INBOX TAB (superadmin) -->
+    <div id="tab-inbox" style="display:none">
+      <div class="sa-section-title">Parish inbox</div>
+      <div class="sa-section-sub">Messages from parish admins and staff</div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem">
+        <button class="filter-quick active" id="inbox-btn-unread"  onclick="loadInbox('unread')">Unread</button>
+        <button class="filter-quick"        id="inbox-btn-read"    onclick="loadInbox('read')">Read</button>
+        <button class="filter-quick"        id="inbox-btn-replied" onclick="loadInbox('replied')">Replied</button>
+        <button class="filter-quick"        id="inbox-btn-all"     onclick="loadInbox('')">All</button>
+      </div>
+      <div id="inbox-list"></div>
+    </div>
+
+    <!-- PARISHES TAB -->
+    <div id="tab-parishes" style="display:none">
+      <div class="sa-section-title">Registered parishes</div>
+      <div class="sa-section-sub">All parishes on the platform</div>
+      <div class="gen-form" style="max-width:560px;margin-bottom:1.5rem">
+        <div style="font-size:13px;font-weight:500;margin-bottom:12px">Create parish manually</div>
+        <div class="gen-grid">
+          <div class="form-row">
+            <label>Parish name</label>
+            <input type="text" id="np-name" placeholder="e.g. Sto. Nino Parish">
+          </div>
+          <div class="form-row">
+            <label>Trial period (days)</label>
+            <input type="number" id="np-days" value="180" min="1" max="730">
+          </div>
+        </div>
+        <div class="gen-grid">
+          <div class="form-row">
+            <label>Admin email</label>
+            <input type="email" id="np-email" placeholder="admin@parish.org">
+          </div>
+          <div class="form-row">
+            <label>Admin password</label>
+            <input type="password" id="np-pass" placeholder="Temporary password">
+          </div>
+        </div>
+        <button class="btn-submit" onclick="createParish()" style="margin-top:8px">Create parish</button>
+        <div id="np-msg" style="font-size:12px;margin-top:8px;min-height:1.3em"></div>
+      </div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:10px">All registered parishes</div>
+      <table class="parishes-table">
+        <thead><tr>
+          <th>Parish</th><th>Slug</th><th>Plan</th><th>Trial ends</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="parishes-tbody"></tbody>
+      </table>
+      <div style="margin-top:2rem">
+        <div class="sa-section-title" style="font-size:14px">Reset user password</div>
+        <div class="sa-section-sub">Enter the user ID and new password to reset any account</div>
+        <div class="gen-form" style="max-width:480px;margin-bottom:1.5rem">
+          <div class="gen-grid">
+            <div class="form-row">
+              <label>User ID</label>
+              <input type="number" id="sa-uid" placeholder="e.g. 2">
+            </div>
+            <div class="form-row">
+              <label>New password</label>
+              <input type="password" id="sa-pw" placeholder="At least 8 characters">
+            </div>
+          </div>
+          <button class="btn-submit" onclick="superadminResetPw()" style="margin-top:8px">Reset password</button>
+          <div id="sa-pw-msg" style="font-size:12px;margin-top:6px;min-height:1.2em"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem">
+        <div class="sa-section-title" style="font-size:14px">Recent slug changes</div>
+        <div class="sa-section-sub">Parishes that updated their display URL</div>
+        <div id="slug-change-log"><p style="font-size:13px;color:var(--muted)">Loading...</p></div>
+      </div>
+    </div>
+
+    <!-- ACCESS CODES TAB -->
+    <div id="tab-codes" style="display:none">
+      <div class="sa-section-title">Access codes</div>
+      <div class="sa-section-sub">Generate codes to give to new parishes for self-registration at /register</div>
+      <div class="gen-form">
+        <div class="gen-grid">
+          <div class="form-row">
+            <label>Note (optional)</label>
+            <input type="text" id="code-note" placeholder="e.g. For Sto. Nino Parish">
+          </div>
+          <div class="form-row">
+            <label>Valid for (days)</label>
+            <input type="number" id="code-days" value="30" min="1" max="365">
+          </div>
+        </div>
+        <button class="btn-submit" onclick="generateCode()" style="margin-top:8px">Generate code</button>
+        <div id="code-msg" style="font-size:12px;margin-top:6px;min-height:1.2em"></div>
+      </div>
+      <div id="codes-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── EDIT MODAL ── -->
+<div id="modal-overlay">
+  <div class="modal-card">
+    <h2>Edit intention</h2>
+    <input type="hidden" id="edit-id">
+    <div class="form-row">
+      <label>Name of honoree</label>
+      <input type="text" id="edit-name">
+    </div>
+    <div class="form-row">
+      <label>Offered by</label>
+      <input type="text" id="edit-offered">
+    </div>
+    <div class="form-row">
+      <label>Intention type</label>
+      <select id="edit-cat"></select>
+    </div>
+    <div class="form-row form-dates">
+      <div>
+        <label>Start date</label>
+        <input type="date" id="edit-start">
+      </div>
+      <div>
+        <label>End date</label>
+        <input type="date" id="edit-end">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save"   onclick="saveEdit()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let TOKEN        = '';
+let CATEGORIES   = [];
+let CURRENT_SLUG = 'demo';
+let ROLE         = '';
+let LOCKED       = false;
+
+// ── Clean up old token keys from previous versions ──
+(function cleanOldStorage() {
+  const oldKeys = ['mp_token', 'mp_parish', 'panalangin_token'];
+  oldKeys.forEach(k => localStorage.removeItem(k));
+})();
+
+// ── Theme presets (defined globally — used in HTML onclick) ──
+const PRESETS = {
+  classic: { bg:'#080c18', text:'#f0ead6', accent:'#c9b97a', label:'#c9b97a', dash:'#2d5a3d' },
+  light:   { bg:'#f7f5f0', text:'#1a1814', accent:'#2d5a3d', label:'#2d5a3d', dash:'#2d5a3d' },
+  royal:   { bg:'#0d1b4e', text:'#f0e8c8', accent:'#e8d48b', label:'#e8d48b', dash:'#1a3a8a' },
+  rose:    { bg:'#1a0a0e', text:'#f5e0e5', accent:'#e8a0b0', label:'#e8a0b0', dash:'#8a2d4e' },
+  forest:  { bg:'#0a1a0d', text:'#e0f0e3', accent:'#7ec88a', label:'#7ec88a', dash:'#1a5a2d' },
+};
+
+// ── Always read token fresh from localStorage ──
+function getToken() {
+  return localStorage.getItem('pn_token') || '';
+}
+
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + getToken()
+  };
+}
+
+// ── Login ──
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  document.getElementById('login-error').textContent = '';
+  if (!email || !pass) {
+    document.getElementById('login-error').textContent = 'Please enter your email and password.';
+    return;
+  }
+  const formData = new FormData();
+  formData.append('username', email);
+  formData.append('password', pass);
+  try {
+    const res  = await fetch(API + '/auth/token', {
+      method: 'POST',
+      body: formData
+    });
+    let data;
+    try { data = await res.json(); } catch(e) { throw new Error('Server error — check console'); }
+    if (!res.ok) throw new Error(data.detail || 'Incorrect email or password');
+    if (!data.access_token) throw new Error('No token received — please try again');
+    localStorage.setItem('pn_token', data.access_token);
+    TOKEN = data.access_token;
+    const payload = JSON.parse(atob(TOKEN.split('.')[1]));
+    await bootApp(payload);
+  } catch(e) {
+    document.getElementById('login-error').textContent = e.message;
+  }
+}
+
+function doLogout() {
+  TOKEN      = '';
+  ROLE       = '';
+  LOCKED     = false;
+  CATEGORIES = [];
+  localStorage.removeItem('pn_token');
+  localStorage.removeItem('pn_parish');
+
+  // Reset trial banner
+  const banner = document.getElementById('trial-banner');
+  if (banner) { banner.className = ''; banner.innerHTML = ''; }
+
+  // Reset tabs to default state
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const firstTab = document.querySelector('.tab-btn.parish-only');
+  if (firstTab) firstTab.classList.add('active');
+
+  // Show all parish-only elements again for next login
+  document.querySelectorAll('.parish-only').forEach(el => el.style.display = '');
+
+  // Hide superadmin elements
+  const saDiv  = document.getElementById('sa-divider');
+  const saMsgBtn = document.getElementById('tab-btn-messages');
+  const saInbox  = document.getElementById('tab-btn-inbox');
+  const saY    = document.getElementById('tab-btn-payments');
+  const saR    = document.getElementById('tab-btn-requests');
+  const saP    = document.getElementById('tab-btn-parishes');
+  const saC    = document.getElementById('tab-btn-codes');
+  const saU    = document.getElementById('tab-btn-users');
+  if (saDiv)    saDiv.style.display    = 'none';
+  if (saMsgBtn) saMsgBtn.style.display = 'none';
+  if (saInbox)  saInbox.style.display  = 'none';
+  if (saY)      saY.style.display      = 'none';
+  if (saR)    saR.style.display    = 'none';
+  if (saP)    saP.style.display    = 'none';
+  if (saC)    saC.style.display    = 'none';
+  if (saU)    saU.style.display    = 'none';
+
+  // Reset tab panels — show only today, hide rest
+  ['today','add','manage','settings','theme','users','messages','payments','requests','inbox','parishes','codes'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.style.display = t === 'today' ? '' : 'none';
+  });
+
+  const dispBtn = document.getElementById('view-display-btn');
+  if (dispBtn) dispBtn.style.display = 'none';
+  CURRENT_SLUG = 'demo';
+  document.getElementById('app').style.display         = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function openDisplay() {
+  const slug = document.getElementById('parish-display').textContent.trim()
+              || 'demo';
+  window.open('/' + CURRENT_SLUG + '/display', '_blank');
+}
+
+async function bootApp(payload) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setTodayHeading();
+  document.getElementById('parish-display').textContent = payload.slug || 'Parish';
+
+  // Set role immediately from JWT so tabs appear without waiting for loadStatus
+  const jwtRole = payload.role || 'staff';
+  ROLE = jwtRole;
+
+  if (jwtRole === 'superadmin') {
+    // Hide parish tabs, show superadmin tabs
+    document.querySelectorAll('.parish-only').forEach(el => el.style.display = 'none');
+    ['sa-divider','tab-btn-payments','tab-btn-requests',
+     'tab-btn-inbox','tab-btn-parishes','tab-btn-codes'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
+    await loadStatus();
+    showTab('requests');
+    loadUnreadCount();
+    loadPendingCount();
+    loadPendingPaymentCount();
+  } else {
+    // Show all parish tabs
+    document.querySelectorAll('.parish-only').forEach(el => el.style.display = '');
+    // Messages tab for all parish roles
+    const msgBtn = document.getElementById('tab-btn-messages');
+    if (msgBtn) msgBtn.style.display = '';
+    // Users tab for admin only
+    if (jwtRole === 'admin') {
+      const usersBtn = document.getElementById('tab-btn-users');
+      if (usersBtn) usersBtn.style.display = '';
+    }
+    await loadStatus();
+    await loadCategories();
+    await loadToday();
+    showTab('today');
+  }
+}
+
+// ── Auto-login if token stored ──
+(async function init() {
+  const stored = localStorage.getItem('pn_token');
+  if (!stored) return;
+  try {
+    const payload = JSON.parse(atob(stored.split('.')[1]));
+    if (payload.exp * 1000 < Date.now()) { doLogout(); return; }
+    TOKEN = stored;
+    await bootApp(payload);
+  } catch(e) { doLogout(); }
+})();
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' &&
+      document.getElementById('login-screen').style.display !== 'none') doLogin();
+});
+
+// ── Tab switching ──
+function showTab(name) {
+  ['today','add','manage','settings','theme','users','messages','payments','requests','inbox','parishes','codes'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    const fn = b.getAttribute('onclick') || '';
+    b.classList.toggle('active', fn.includes("'" + name + "'"));
+  });
+  if (name === 'manage')   { setQuick(currentQuick || 'week'); updateSortHeaders(); }
+  if (name === 'messages') { loadMyMessages(); }
+  if (name === 'inbox')    { loadInbox('unread'); }
+  if (name === 'payments') { loadPayments('pending'); }
+  if (name === 'requests') { loadRequests('pending'); }
+  if (name === 'parishes') { loadParishes(); }
+  if (name === 'settings')  { loadSettings(); }
+  if (name === 'users')     { loadUsers(); }
+  if (name === 'theme')     { loadTheme(); }
+  if (name === 'codes')    { loadCodes(); }
+  if (name === 'add')    { setDefaultDates(); renderNameTags(); }
+}
+
+// ── Categories ──
+async function loadCategories() {
+  try {
+    const res = await fetch(API + '/api/dashboard/categories', {
+      headers: authHeaders()
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (Array.isArray(data) && data.length) {
+      CATEGORIES = data;
+      populateCatSelects();
+    }
+  } catch(e) {
+    console.error('loadCategories failed:', e.message);
+  }
+}
+
+function populateCatSelects() {
+  ['f-cat','edit-cat'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = CATEGORIES.map(c =>
+      `<option value="${c.id}">${c.label}</option>`
+    ).join('');
+  });
+}
+
+// ── TODAY tab ──
+function setTodayHeading() {
+  const d = new Date();
+  document.getElementById('today-heading').textContent =
+    d.toLocaleDateString('en-PH', { weekday:'long', year:'numeric',
+                                     month:'long', day:'numeric' });
+}
+
+async function loadToday() {
+  const today = toDateStr(new Date());
+  try {
+    const res  = await fetch(
+      `${API}/api/dashboard/intentions?start=${today}&end=${today}`,
+      { headers: authHeaders() }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    renderToday(data);
+  } catch(e) {
+    document.getElementById('today-body').innerHTML =
+      '<p class="today-empty">Could not load intentions.</p>';
+  }
+}
+
+function renderToday(items) {
+  const body = document.getElementById('today-body');
+  if (!items.length) {
+    body.innerHTML = '<p class="today-empty">No intentions are active for today.</p>';
+    return;
+  }
+  const grouped = {};
+  items.forEach(i => {
+    if (!grouped[i.category]) grouped[i.category] = [];
+    grouped[i.category].push(i);
+  });
+  body.innerHTML = Object.entries(grouped).map(([cat, list]) => `
+    <div class="cat-block">
+      <div class="cat-heading">${cat}</div>
+      ${list.map(i => `
+        <div class="today-name-row">
+          <span class="name">${i.name}</span>
+          <span class="meta">offered by ${i.offered_by}</span>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+// ── ADD form ──
+let pendingNames = [];
+
+function setDefaultDates() {
+  const today = toDateStr(new Date());
+  document.getElementById('f-start').value = today;
+  document.getElementById('f-end').value   = today;
+}
+
+function addNameToList() {
+  const input = document.getElementById('f-name-input');
+  const name  = input.value.trim();
+  if (!name) return;
+  if (pendingNames.includes(name)) {
+    input.value = '';
+    input.focus();
+    return;
+  }
+  pendingNames.push(name);
+  renderNameTags();
+  input.value = '';
+  input.focus();
+}
+
+function removeNameFromList(name) {
+  pendingNames = pendingNames.filter(n => n !== name);
+  renderNameTags();
+}
+
+function renderNameTags() {
+  const el = document.getElementById('names-list');
+  if (!pendingNames.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0">No names added yet.</div>';
+    return;
+  }
+  el.innerHTML = [...pendingNames].sort().map(name => `
+    <span class="name-tag">
+      ${name}
+      <button onclick="removeNameFromList('${esc(name)}')" title="Remove">×</button>
+    </span>`).join('');
+}
+
+async function submitIntention() {
+  const off   = document.getElementById('f-offered').value.trim();
+  const cat   = document.getElementById('f-cat').value;
+  const start = document.getElementById('f-start').value;
+  const end   = document.getElementById('f-end').value;
+
+  if (!off || !cat || !start || !end) {
+    showMsg('err', 'Please fill in all fields.'); return;
+  }
+  if (!pendingNames.length) {
+    showMsg('err', 'Please add at least one name.'); return;
+  }
+  if (end < start) {
+    showMsg('err', 'End date must be on or after start date.'); return;
+  }
+
+  showMsg('ok', `Saving ${pendingNames.length} intention(s)...`);
+
+  let saved = 0, failed = 0;
+  for (const name of pendingNames) {
+    try {
+      const res = await fetch(API + '/api/dashboard/intentions', {
+        method:  'POST',
+        headers: authHeaders(),
+        body:    JSON.stringify({
+          name,
+          offered_by:  off,
+          category_id: parseInt(cat),
+          start_date:  start,
+          end_date:    end
+        })
+      });
+      if (!res.ok) throw new Error();
+      saved++;
+    } catch(e) {
+      failed++;
+    }
+  }
+
+  if (failed === 0) {
+    showMsg('ok', `✓ ${saved} intention(s) saved successfully.`);
+    pendingNames = [];
+    renderNameTags();
+    document.getElementById('f-offered').value = '';
+    document.getElementById('f-name-input').value = '';
+    setDefaultDates();
+    loadToday();
+  } else {
+    showMsg('err', `${saved} saved, ${failed} failed. Please try again.`);
+  }
+}
+
+function showMsg(type, text) {
+  const el = document.getElementById('form-msg');
+  el.textContent = text;
+  el.className   = type;
+}
+
+// ── MANAGE tab ──
+let currentQuick = 'week';
+let currentMonth = new Date();
+
+function setQuick(mode) {
+  currentQuick = mode;
+  document.querySelectorAll('.filter-quick').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + mode).classList.add('active');
+  const monthNav = document.getElementById('month-nav');
+
+  if (mode === 'week') {
+    monthNav.style.display = 'none';
+    const now   = new Date();
+    const day   = now.getDay();
+    const start = new Date(now); start.setDate(now.getDate() - day);
+    const end   = new Date(now); end.setDate(now.getDate() + (6 - day));
+    document.getElementById('filter-start').value = toDateStr(start);
+    document.getElementById('filter-end').value   = toDateStr(end);
+  } else if (mode === 'month') {
+    monthNav.style.display = 'flex';
+    currentMonth = new Date();
+    applyMonthFilter();
+  } else if (mode === 'all') {
+    monthNav.style.display = 'none';
+    document.getElementById('filter-start').value = '';
+    document.getElementById('filter-end').value   = '';
+  }
+  loadManage();
+}
+
+function applyMonthFilter() {
+  const y = currentMonth.getFullYear();
+  const m = currentMonth.getMonth();
+  const start = new Date(y, m, 1);
+  const end   = new Date(y, m + 1, 0);
+  document.getElementById('filter-start').value = toDateStr(start);
+  document.getElementById('filter-end').value   = toDateStr(end);
+  document.getElementById('month-label').textContent =
+    currentMonth.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+}
+
+function navMonth(dir) {
+  currentMonth.setMonth(currentMonth.getMonth() + dir);
+  applyMonthFilter();
+  loadManage();
+}
+
+function setWeekFilter() {
+  setQuick('week');
+}
+
+function clearFilter() { setQuick('week'); }
+
+let manageItems  = [];
+let sortCol      = 'name';
+let sortDir      = 'asc';
+
+async function loadManage() {
+  const start = document.getElementById('filter-start').value;
+  const end   = document.getElementById('filter-end').value;
+  const params = new URLSearchParams();
+  if (start) params.append('start', start);
+  if (end)   params.append('end',   end);
+  try {
+    const res = await fetch(
+      `${API}/api/dashboard/intentions?${params}`,
+      { headers: authHeaders() }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    manageItems = await res.json();
+    renderManageFiltered();
+  } catch(e) {}
+}
+
+function sortManage(col) {
+  if (sortCol === col) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortCol = col;
+    sortDir = 'asc';
+  }
+  updateSortHeaders();
+  renderManageFiltered();
+}
+
+function updateSortHeaders() {
+  ['name','offered_by','category'].forEach(col => {
+    const th = document.getElementById('th-' + col);
+    const si = document.getElementById('si-' + col);
+    if (!th || !si) return;
+    if (col === sortCol) {
+      th.classList.add('active');
+      si.textContent = sortDir === 'asc' ? '↑' : '↓';
+    } else {
+      th.classList.remove('active');
+      si.textContent = '↕';
+    }
+  });
+}
+
+function renderManageFiltered() {
+  const q = (document.getElementById('search-input').value || '').toLowerCase().trim();
+  const filtered = q
+    ? manageItems.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.offered_by.toLowerCase().includes(q)
+      )
+    : [...manageItems];
+
+  // Apply sort
+  filtered.sort((a, b) => {
+    const av = (a[sortCol] || '').toLowerCase();
+    const bv = (b[sortCol] || '').toLowerCase();
+    if (av < bv) return sortDir === 'asc' ? -1 :  1;
+    if (av > bv) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  renderManage(filtered, q);
+}
+
+function highlight(text, q) {
+  if (!q) return text;
+  const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return text.replace(re, '<mark style="background:#fef3cd;border-radius:2px;padding:0 1px">$1</mark>');
+}
+
+function renderManage(items, q) {
+  const tbody = document.getElementById('manage-tbody');
+  const empty = document.getElementById('table-empty');
+  if (!items.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = manageItems.length
+      ? 'No intentions match your search.'
+      : 'No intentions found for the selected period.';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = items.map(i => `
+    <tr>
+      <td><strong>${highlight(i.name, q)}</strong></td>
+      <td>${highlight(i.offered_by, q)}</td>
+      <td><span class="badge">${i.category}</span></td>
+      <td class="date-range">${fmtDate(i.start_date)} — ${fmtDate(i.end_date)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-edit" onclick="openEdit(${i.id},'${esc(i.name)}','${esc(i.offered_by)}',${i.category_id},'${i.start_date}','${i.end_date}')">Edit</button>
+        <button class="btn-del"  onclick="deleteRow(${i.id}, this)">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function deleteRow(id, btn) {
+  if (!confirm('Delete this intention?')) return;
+  btn.disabled = true;
+  try {
+    await fetch(`${API}/api/dashboard/intentions/${id}`,
+                { method: 'DELETE', headers: authHeaders() });
+    loadManage(); loadToday();
+  } catch(e) { btn.disabled = false; }
+}
+
+// ── EDIT MODAL ──
+function openEdit(id, name, offered, catId, start, end) {
+  document.getElementById('edit-id').value      = id;
+  document.getElementById('edit-name').value    = name;
+  document.getElementById('edit-offered').value = offered;
+  document.getElementById('edit-start').value   = start;
+  document.getElementById('edit-end').value     = end;
+  document.getElementById('edit-cat').value     = catId;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+async function saveEdit() {
+  const id    = document.getElementById('edit-id').value;
+  const name  = document.getElementById('edit-name').value.trim();
+  const off   = document.getElementById('edit-offered').value.trim();
+  const cat   = document.getElementById('edit-cat').value;
+  const start = document.getElementById('edit-start').value;
+  const end   = document.getElementById('edit-end').value;
+  if (!name || !off || !start || !end) { alert('Please fill in all fields.'); return; }
+  if (end < start) { alert('End date must be on or after start date.'); return; }
+  try {
+    const res = await fetch(`${API}/api/dashboard/intentions/${id}`, {
+      method: 'PUT', headers: authHeaders(),
+      body: JSON.stringify({ name, offered_by: off,
+                             category_id: parseInt(cat),
+                             start_date: start, end_date: end })
+    });
+    if (!res.ok) throw new Error((await res.json()).detail);
+    closeModal(); loadManage(); loadToday();
+  } catch(e) { alert(e.message || 'Could not save changes.'); }
+}
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+const payOverlay = document.getElementById('pay-overlay');
+if (payOverlay) payOverlay.addEventListener('click', function(e) {
+  if (e.target === this) closePayModal();
+});
+
+// ── Trial status & superadmin boot ──
+// ROLE and LOCKED declared in global scope above
+
+async function loadStatus() {
+  try {
+    const res  = await fetch('/api/dashboard/status', { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    ROLE   = data.role;
+    LOCKED = data.locked;
+
+    // Trial banner
+    const banner = document.getElementById('trial-banner');
+    if (data.locked) {
+      banner.className = 'locked';
+      banner.innerHTML = '<strong>Your subscription has ended.</strong> Add/edit intentions is disabled. <a onclick="showPayment()">View payment instructions →</a>';
+    } else if (data.warning && data.days_left !== null) {
+      banner.className = 'warning';
+      banner.innerHTML = `<strong>${data.days_left} day${data.days_left === 1 ? '' : 's'} left in your free trial.</strong> Subscribe to keep your display running. <a onclick="showPayment()">View plans →</a>`;
+    }
+
+    // Disable add/edit if locked (parish roles only)
+    if (LOCKED && ROLE !== 'superadmin') {
+      const addBtn = document.getElementById('tab-btn-add');
+      if (addBtn) { addBtn.style.opacity = '.4'; addBtn.style.pointerEvents = 'none'; }
+    }
+
+    // Show superadmin tabs
+    if (ROLE === 'superadmin') {
+      document.getElementById('sa-divider').style.display        = '';
+      document.getElementById('tab-btn-parishes').style.display  = '';
+      document.getElementById('tab-btn-codes').style.display     = '';
+      document.getElementById('parish-display').textContent      = 'Platform Administrator';
+    } else {
+      document.getElementById('parish-display').textContent = data.parish_name || '';
+    CURRENT_SLUG = data.slug || 'demo';
+    if (data.dash_accent) applyDashAccent(data.dash_accent);
+    }
+
+    // Show View display button for parish roles
+    if (ROLE !== 'superadmin') {
+      const displayBtn = document.getElementById('view-display-btn');
+      if (displayBtn) displayBtn.style.display = '';
+    }
+
+    // Show Users tab for admin only
+    if (ROLE === 'admin') {
+      const usersBtn = document.getElementById('tab-btn-users');
+      if (usersBtn) usersBtn.style.display = '';
+    }
+    // Show Messages tab for parish roles
+    if (ROLE !== 'superadmin') {
+      const msgBtn = document.getElementById('tab-btn-messages');
+      if (msgBtn) msgBtn.style.display = '';
+    }
+    // Show Inbox for superadmin
+    if (ROLE === 'superadmin') {
+      const inboxBtn = document.getElementById('tab-btn-inbox');
+      if (inboxBtn) inboxBtn.style.display = '';
+      loadUnreadCount();
+    }
+
+    // Start tutorial if first login
+    if (!data.tutorial_seen) {
+      setTimeout(() => startTutorial(ROLE), 800);
+    }
+  } catch(e) {}
+}
+
+function showPayment() {
+  document.getElementById('pay-overlay').classList.add('open');
+  selectPlan('monthly');
+}
+function closePayModal() {
+  document.getElementById('pay-overlay').classList.remove('open');
+  document.getElementById('pay-ref').value  = '';
+  document.getElementById('pay-msg').textContent = '';
+}
+
+let selectedPlan = 'monthly';
+function selectPlan(plan) {
+  selectedPlan = plan;
+  document.getElementById('plan-monthly').classList.toggle('selected', plan === 'monthly');
+  document.getElementById('plan-annual').classList.toggle('selected',  plan === 'annual');
+  const badge = document.getElementById('pay-amount-badge');
+  badge.textContent = plan === 'monthly' ? '₱200 — Monthly' : '₱2,000 — Annual (save ₱400)';
+}
+
+async function submitPayment() {
+  const ref = document.getElementById('pay-ref').value.trim();
+  const msg = document.getElementById('pay-msg');
+  if (!ref) { msg.textContent = 'Please enter your GCash reference number.'; return; }
+  msg.textContent = '';
+  try {
+    const res  = await fetch('/api/dashboard/payment', {
+      method:  'POST',
+      headers: authHeaders(),
+      body:    JSON.stringify({ plan: selectedPlan, reference_no: ref })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    closePayModal();
+    alert('✓ Payment submitted successfully!\n\nReference no.: ' + ref + '\n\nYour subscription will be activated within 24 hours after our team verifies your payment.\n\nThank you for supporting Panalangin!');
+  } catch(e) {
+    msg.textContent = e.message || 'Could not submit payment.';
+  }
+}
+
+// ── Superadmin: payments ──
+let currentPayFilter = 'pending';
+
+async function loadPendingPaymentCount() {
+  try {
+    const res  = await fetch('/api/superadmin/payments?status=pending',
+                             { headers: authHeaders() });
+    const data = await res.json();
+    const badge = document.getElementById('pay-badge');
+    if (badge && data.length) {
+      badge.textContent   = data.length;
+      badge.style.display = '';
+      badge.style.background = '#c0392b';
+      badge.style.color      = '#fff';
+    }
+  } catch(e) {}
+}
+
+async function loadPayments(status) {
+  currentPayFilter = status;
+  ['pending','confirmed','rejected','all'].forEach(s => {
+    const btn = document.getElementById('pay-btn-' + (s || 'all'));
+    if (btn) btn.classList.toggle('active', (s || '') === (status || ''));
+  });
+  try {
+    const url  = '/api/superadmin/payments' + (status ? `?status=${status}` : '');
+    const res  = await fetch(url, { headers: authHeaders() });
+    const data = await res.json();
+    renderPayments(data);
+  } catch(e) {}
+}
+
+function renderPayments(items) {
+  const el = document.getElementById('payments-list');
+  if (!items.length) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--muted);
+      font-style:italic;padding:12px 0">
+      No ${currentPayFilter || ''} payments found.</p>`;
+    return;
+  }
+  el.innerHTML = items.map(p => `
+    <div class="req-card ${p.status}" id="pay-${p.id}"
+         style="border-left-color:${
+           p.status==='pending'  ? 'var(--accent)' :
+           p.status==='confirmed'? '#2d8a4e' : 'var(--danger)'}">
+      <div class="req-header">
+        <div class="req-parish">${p.parish_name}</div>
+        <span class="req-status ${p.status}">${p.status}</span>
+      </div>
+      <div class="req-details">
+        <div><strong>Plan:</strong>
+          ${p.plan === 'monthly' ? 'Monthly — ₱200' : 'Annual — ₱2,000'}
+        </div>
+        <div><strong>Reference no.:</strong>
+          <span style="font-family:monospace;font-weight:500">${p.reference_no}</span>
+        </div>
+        <div><strong>Submitted:</strong> ${fmtDate(p.created_at.split('T')[0])}</div>
+        ${p.confirmed_at ? `<div><strong>Reviewed:</strong>
+          ${fmtDate(p.confirmed_at.split('T')[0])}</div>` : ''}
+      </div>
+      ${p.status === 'pending' ? `
+        <div class="req-actions">
+          <button class="btn-submit"
+            style="width:auto;padding:7px 18px;margin:0"
+            onclick="confirmPayment(${p.id})">
+            ✓ Confirm payment
+          </button>
+          <button class="btn-del"
+            onclick="rejectPayment(${p.id})">Reject</button>
+        </div>` :
+      p.status === 'confirmed' ? `
+        <div style="font-size:12px;color:#2d8a4e;font-weight:500">
+          ✓ Subscription activated
+          ${p.plan === 'monthly' ? '(+1 month)' : '(+12 months)'}
+        </div>` : ''
+      }
+    </div>`).join('');
+}
+
+async function confirmPayment(id) {
+  if (!confirm('Confirm this payment and activate the subscription?')) return;
+  try {
+    const res  = await fetch(`/api/superadmin/payments/${id}/confirm`,
+                             { method: 'POST', headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    loadPayments(currentPayFilter);
+    loadPendingPaymentCount();
+    alert(`✓ Payment confirmed!
+
+${data.parish}
+Plan: ${data.plan}
+Active until: ${fmtDate(data.paid_until.split('T')[0])}`);
+  } catch(e) {
+    alert(e.message || 'Could not confirm payment.');
+  }
+}
+
+async function rejectPayment(id) {
+  if (!confirm('Reject this payment submission?')) return;
+  try {
+    await fetch(`/api/superadmin/payments/${id}/reject`,
+                { method: 'POST', headers: authHeaders() });
+    loadPayments(currentPayFilter);
+    loadPendingPaymentCount();
+  } catch(e) {}
+}
+
+// ── Superadmin: registration requests ──
+let currentReqFilter = 'pending';
+
+async function loadPendingCount() {
+  try {
+    const res  = await fetch('/api/superadmin/requests?status=pending',
+                             { headers: authHeaders() });
+    const data = await res.json();
+    const badge = document.getElementById('req-badge');
+    if (badge && data.length) {
+      badge.textContent   = data.length;
+      badge.style.display = '';
+      badge.style.background = '#c0392b';
+      badge.style.color      = '#fff';
+    }
+  } catch(e) {}
+}
+
+async function loadRequests(status) {
+  currentReqFilter = status;
+  ['pending','approved','rejected','all'].forEach(s => {
+    const btn = document.getElementById('req-btn-' + (s || 'all'));
+    if (btn) btn.classList.toggle('active', (s || '') === (status || ''));
+  });
+  try {
+    const url  = '/api/superadmin/requests' + (status ? `?status=${status}` : '');
+    const res  = await fetch(url, { headers: authHeaders() });
+    const data = await res.json();
+    renderRequests(data);
+  } catch(e) {}
+}
+
+function renderRequests(items) {
+  const el = document.getElementById('requests-list');
+  if (!items.length) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--muted);font-style:italic;padding:12px 0">
+      No ${currentReqFilter || ''} requests found.</p>`;
+    return;
+  }
+  el.innerHTML = items.map(r => `
+    <div class="req-card ${r.status}" id="req-${r.id}">
+      <div class="req-header">
+        <div class="req-parish">${r.parish_name}</div>
+        <span class="req-status ${r.status}">${r.status}</span>
+      </div>
+      <div class="req-details">
+        <div><strong>Parish priest:</strong> ${r.parish_priest}</div>
+        <div><strong>Representative:</strong> ${r.representative}</div>
+        <div><strong>Email:</strong> ${r.email}</div>
+        <div><strong>Contact:</strong> ${r.contact_number}</div>
+        <div style="grid-column:1/-1"><strong>Facebook:</strong>
+          <a href="${r.facebook_page.startsWith('http') ? r.facebook_page : 'https://'+r.facebook_page}"
+             target="_blank" style="color:var(--accent)">${r.facebook_page}</a>
+        </div>
+        <div style="grid-column:1/-1;color:var(--muted)">
+          Submitted: ${fmtDate(r.created_at.split('T')[0])}
+        </div>
+      </div>
+      ${r.status === 'pending' ? `
+        <div class="req-actions">
+          <button class="btn-submit" style="width:auto;padding:7px 18px;margin:0"
+            onclick="approveRequest(${r.id})">&#10003; Approve &amp; generate code</button>
+          <button class="btn-del" onclick="rejectRequest(${r.id})">Reject</button>
+        </div>` :
+      r.status === 'approved' ? `
+        <div style="font-size:12px;color:var(--muted)">
+          Code generated and sent to <strong>${r.email}</strong>
+        </div>` : ''
+      }
+    </div>`).join('');
+}
+
+async function approveRequest(id) {
+  if (!confirm('Approve this request and generate an access code?')) return;
+  try {
+    const res  = await fetch(`/api/superadmin/requests/${id}/approve`,
+                             { method: 'POST', headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+
+    // Show generated code prominently
+    const card = document.getElementById('req-' + id);
+    if (card) {
+      card.innerHTML = `
+        <div class="req-header">
+          <div class="req-parish">${data.parish}</div>
+          <span class="req-status approved">approved</span>
+        </div>
+        <div style="margin-bottom:10px;font-size:13px;color:var(--muted)">
+          Access code generated. Share this code with the parish representative at
+          <strong>${data.email}</strong>:
+        </div>
+        <div class="req-code">${data.code}</div>
+        <div style="font-size:12px;color:var(--muted)">
+          Valid for 90 days · Single use · For ${data.parish}
+        </div>`;
+      card.className = 'req-card approved';
+    }
+    loadPendingCount();
+  } catch(e) {
+    alert(e.message || 'Could not approve request.');
+  }
+}
+
+async function rejectRequest(id) {
+  if (!confirm('Reject this registration request?')) return;
+  try {
+    await fetch(`/api/superadmin/requests/${id}/reject`,
+                { method: 'POST', headers: authHeaders() });
+    loadRequests(currentReqFilter);
+    loadPendingCount();
+  } catch(e) {}
+}
+
+// ── Superadmin: parishes ──
+async function loadParishes() {
+  try {
+    const res  = await fetch('/api/superadmin/parishes', { headers: authHeaders() });
+    const data = await res.json();
+    const tbody = document.getElementById('parishes-tbody');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:12px;color:var(--muted)">No parishes yet.</td></tr>'; return; }
+    tbody.innerHTML = data.map(p => `
+      <tr>
+        <td><strong>${p.name}</strong></td>
+        <td style="font-family:monospace;font-size:12px">${p.slug}</td>
+        <td><span class="plan-badge plan-${p.plan}">${p.plan}</span></td>
+        <td style="font-size:12px;color:var(--muted)">${p.trial_ends_at ? fmtDate(p.trial_ends_at.split('T')[0]) : '—'}</td>
+        <td style="white-space:nowrap">
+          <button class="btn-edit" onclick="extendTrial(${p.id})">+30 days</button>
+          <button class="btn-del"  onclick="toggleParish(${p.id}, ${p.is_active})">${p.is_active ? 'Deactivate' : 'Activate'}</button>
+        </td>
+      </tr>`).join('');
+    // Load slug change log
+    loadSlugLog();
+  } catch(e) {}
+}
+
+async function loadSlugLog() {
+  try {
+    const res  = await fetch('/api/superadmin/slug-changes', { headers: authHeaders() });
+    const data = await res.json();
+    const el   = document.getElementById('slug-change-log');
+    if (!data.length) {
+      el.innerHTML = '<p style="font-size:13px;color:var(--muted)">No changes yet.</p>';
+      return;
+    }
+    el.innerHTML = data.map(l => `
+      <div class="history-row" style="max-width:600px">
+        <span>${l.old_slug} → <strong>${l.new_slug}</strong></span>
+        <span>${fmtDate(l.changed_at.split('T')[0])}</span>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function createParish() {
+  const name  = document.getElementById('np-name').value.trim();
+  const email = document.getElementById('np-email').value.trim();
+  const pass  = document.getElementById('np-pass').value;
+  const days  = parseInt(document.getElementById('np-days').value) || 180;
+  const msg   = document.getElementById('np-msg');
+
+  if (!name || !email || !pass) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'Please fill in all fields.'; return;
+  }
+  try {
+    const res  = await fetch('/api/superadmin/parishes', {
+      method:  'POST',
+      headers: authHeaders(),
+      body:    JSON.stringify({
+        parish_name:    name,
+        admin_email:    email,
+        admin_password: pass,
+        trial_days:     days
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    msg.style.color = 'var(--accent)';
+    msg.textContent = `✓ Created! Display URL: ${window.location.origin}${data.display_url}`;
+    document.getElementById('np-name').value  = '';
+    document.getElementById('np-email').value = '';
+    document.getElementById('np-pass').value  = '';
+    loadParishes();
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Could not create parish.';
+  }
+}
+
+async function extendTrial(id) {
+  if (!confirm('Extend trial by 30 days?')) return;
+  await fetch(`/api/superadmin/parishes/${id}?extend_trial_days=30`,
+              { method: 'PUT', headers: authHeaders() });
+  loadParishes();
+}
+
+async function toggleParish(id, active) {
+  if (!confirm(active ? 'Deactivate this parish?' : 'Activate this parish?')) return;
+  await fetch(`/api/superadmin/parishes/${id}?is_active=${!active}`,
+              { method: 'PUT', headers: authHeaders() });
+  loadParishes();
+}
+
+// ── Superadmin: access codes ──
+async function loadCodes() {
+  try {
+    const res  = await fetch('/api/superadmin/codes', { headers: authHeaders() });
+    const data = await res.json();
+    const list = document.getElementById('codes-list');
+    if (!data.length) { list.innerHTML = '<p style="font-size:13px;color:var(--muted)">No codes generated yet.</p>'; return; }
+    list.innerHTML = data.map(c => `
+      <div class="code-card">
+        <div>
+          <div class="code-str ${c.available ? 'code-avail' : 'code-used'}">${c.code}</div>
+          <div class="code-meta">${c.note || 'No note'} · Expires ${fmtDate(c.expires_at.split('T')[0])} · Used ${c.times_used}/${c.max_uses}</div>
+        </div>
+        <button class="btn-del" onclick="deleteCode(${c.id})">Delete</button>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function generateCode() {
+  const note = document.getElementById('code-note').value.trim();
+  const days = parseInt(document.getElementById('code-days').value) || 30;
+  const msg  = document.getElementById('code-msg');
+  try {
+    const res  = await fetch('/api/superadmin/codes', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ note, days_valid: days, max_uses: 1 })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    msg.style.color = 'var(--accent)';
+    msg.textContent = `Code generated: ${data.code}`;
+    document.getElementById('code-note').value = '';
+    loadCodes();
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message;
+  }
+}
+
+async function deleteCode(id) {
+  if (!confirm('Delete this access code?')) return;
+  await fetch(`/api/superadmin/codes/${id}`,
+              { method: 'DELETE', headers: authHeaders() });
+  loadCodes();
+}
+
+// ── Settings tab ──
+let slugCheckTimer = null;
+let slugAvailable  = false;
+let currentSlug    = '';
+
+async function loadSettings() {
+  try {
+    const res  = await fetch('/api/dashboard/settings', { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    currentSlug = data.slug;
+
+    document.getElementById('s-parish-name').value = data.parish_name;
+    document.getElementById('s-slug').value         = data.slug;
+    document.getElementById('s-origin').textContent =
+      window.location.origin + '/';
+    document.getElementById('s-current-url').textContent =
+      window.location.origin + '/' + data.slug + '/display';
+
+    // History
+    if (data.slug_history && data.slug_history.length) {
+      document.getElementById('s-history').style.display = '';
+      document.getElementById('s-history-list').innerHTML =
+        data.slug_history.map(h => `
+          <div class="history-row">
+            <span>${h.old_slug} → ${h.new_slug}</span>
+            <span>${fmtDate(h.changed_at.split('T')[0])}</span>
+          </div>`).join('');
+    }
+  } catch(e) {}
+}
+
+function checkSlug() {
+  clearTimeout(slugCheckTimer);
+  const val    = document.getElementById('s-slug').value.trim();
+  const status = document.getElementById('s-slug-status');
+  const btn    = document.getElementById('s-save-btn');
+  slugAvailable = false;
+  btn.disabled  = true;
+
+  if (!val) { status.textContent = ''; return; }
+  if (val === currentSlug) {
+    status.className = 'slug-ok';
+    status.textContent = '✓ This is your current URL — no change needed';
+    return;
+  }
+
+  status.textContent = 'Checking availability…';
+  status.className   = '';
+
+  slugCheckTimer = setTimeout(async () => {
+    try {
+      const res  = await fetch(
+        `/api/dashboard/slug/check?slug=${encodeURIComponent(val)}`,
+        { headers: authHeaders() }
+      );
+      const data = await res.json();
+      if (data.available) {
+        status.className   = 'slug-ok';
+        status.textContent = `✓ Available — your new URL will be: ${window.location.origin}/${data.slug}/display`;
+        slugAvailable = true;
+        btn.disabled  = false;
+      } else {
+        status.className   = 'slug-err';
+        status.textContent = '✗ ' + data.reason;
+        slugAvailable = false;
+        btn.disabled  = true;
+      }
+    } catch(e) {
+      status.textContent = 'Could not check availability.';
+    }
+  }, 500);
+}
+
+async function saveSlug() {
+  if (!slugAvailable) return;
+  const val = document.getElementById('s-slug').value.trim();
+  const msg = document.getElementById('s-save-msg');
+  const btn = document.getElementById('s-save-btn');
+  btn.disabled = true;
+  try {
+    const res  = await fetch('/api/dashboard/slug', {
+      method:  'PUT',
+      headers: authHeaders(),
+      body:    JSON.stringify({ slug: val })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+
+    currentSlug = data.new_slug;
+    msg.style.color = 'var(--accent)';
+    msg.textContent = '✓ Display URL updated successfully.';
+
+    document.getElementById('s-current-url').textContent =
+      window.location.origin + '/' + data.new_slug + '/display';
+    document.getElementById('s-slug-status').textContent = '';
+
+    // Refresh history
+    loadSettings();
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Could not update URL.';
+    btn.disabled    = false;
+  }
+}
+
+// ── User management ──
+async function loadUsers() {
+  try {
+    const res  = await fetch('/api/dashboard/users', { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const tbody = document.getElementById('users-tbody');
+    const empty = document.getElementById('users-empty');
+    if (!data.length) {
+      tbody.innerHTML    = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    tbody.innerHTML = data.map(u => `
+      <tr>
+        <td>${u.email}</td>
+        <td><span class="badge" style="${u.is_active
+          ? 'background:var(--accent2);color:var(--accent)'
+          : 'background:#fdf0ee;color:var(--danger)'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td style="font-size:12px;color:var(--muted)">${u.created_at ? fmtDate(u.created_at.split('T')[0]) : '—'}</td>
+        <td style="white-space:nowrap">
+          <button class="btn-edit" onclick="resetStaffPassword(${u.id}, '${esc(u.email)}')">Reset pw</button>
+          <button class="btn-edit" onclick="toggleUser(${u.id}, this)">${u.is_active ? 'Deactivate' : 'Activate'}</button>
+          <button class="btn-del"  onclick="deleteUser(${u.id}, this)">Delete</button>
+        </td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+async function createStaffAccount() {
+  const email = document.getElementById('u-email').value.trim();
+  const pass  = document.getElementById('u-pass').value;
+  const msg   = document.getElementById('u-msg');
+  if (!email || !pass) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'Please fill in all fields.'; return;
+  }
+  if (pass.length < 8) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'Password must be at least 8 characters.'; return;
+  }
+  try {
+    const res  = await fetch('/api/dashboard/users', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    msg.style.color = 'var(--accent)';
+    msg.textContent = '✓ Parish staff account created successfully.';
+    document.getElementById('u-email').value = '';
+    document.getElementById('u-pass').value  = '';
+    loadUsers();
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Could not create account.';
+  }
+}
+
+async function toggleUser(id, btn) {
+  btn.disabled = true;
+  try {
+    await fetch(`/api/dashboard/users/${id}/toggle`,
+                { method: 'PUT', headers: authHeaders() });
+    loadUsers();
+  } catch(e) { btn.disabled = false; }
+}
+
+async function deleteUser(id, btn) {
+  if (!confirm('Permanently delete this parish staff account?')) return;
+  btn.disabled = true;
+  try {
+    await fetch(`/api/dashboard/users/${id}`,
+                { method: 'DELETE', headers: authHeaders() });
+    loadUsers();
+  } catch(e) { btn.disabled = false; }
+}
+
+// ── Tutorial ──
+const TUTORIALS = {
+  parish: [
+    {
+      tab:   'today',
+      title: "Today's intentions",
+      body:  "This is your home screen. Every time you open the dashboard before Mass, check here to confirm all names are correctly encoded for today.",
+    },
+    {
+      tab:   'add',
+      title: 'Add intention',
+      body:  "Encode a new intention here. Fill in the name, who offered it, the category (Thanksgiving, Souls, etc.), and the date range it should appear on screen.",
+    },
+    {
+      tab:   'manage',
+      title: 'Manage intentions',
+      body:  "View, search, edit, or delete any intention. Use the week and month filters to verify upcoming intentions are correctly scheduled.",
+    },
+    {
+      tab:   'settings',
+      title: 'Parish settings',
+      body:  "Change your display page URL here. Share the display URL with whoever sets up the projector — they just open it in a browser before Mass.",
+    },
+  ],
+  admin: [
+    {
+      tab:   'today',
+      title: "Today's intentions",
+      body:  "This is your home screen. Every time you open the dashboard before Mass, check here to confirm all names are correctly encoded for today.",
+    },
+    {
+      tab:   'add',
+      title: 'Add intention',
+      body:  "Encode a new intention here. Fill in the name, who offered it, the category (Thanksgiving, Souls, etc.), and the date range it should appear on screen.",
+    },
+    {
+      tab:   'manage',
+      title: 'Manage intentions',
+      body:  "View, search, edit, or delete any intention. Use the week and month filters to verify upcoming intentions are correctly scheduled.",
+    },
+    {
+      tab:   'settings',
+      title: 'Parish settings',
+      body:  "Change your display page URL here. Share the URL with whoever sets up the projector — they open it in a browser before Mass.",
+    },
+    {
+      tab:   'users',
+      title: 'Parish staff accounts',
+      body:  "Create login accounts for your parish staff members here. Each parish staff gets their own email and password to access this dashboard.",
+    },
+  ],
+  superadmin: [
+    {
+      tab:   'parishes',
+      title: 'Registered parishes',
+      body:  "See all parishes on the platform. Create new parishes manually, extend trials, or deactivate accounts from here.",
+    },
+    {
+      tab:   'codes',
+      title: 'Access codes',
+      body:  "Generate unique codes to give to parishes so they can self-register at /register. Each code can only be used once.",
+    },
+  ],
+};
+
+let tutStep = 0;
+let tutSteps = [];
+
+function startTutorial(role) {
+  tutSteps = TUTORIALS[role] || TUTORIALS.parish;
+  tutStep  = 0;
+  showTutorialStep();
+}
+
+function showTutorialStep() {
+  if (tutStep >= tutSteps.length) { endTutorial(); return; }
+  const step    = tutSteps[tutStep];
+  const overlay = document.getElementById('tutorial-overlay');
+  const bubble  = document.getElementById('tutorial-bubble');
+  const isLast  = tutStep === tutSteps.length - 1;
+
+  document.getElementById('tut-step-label').textContent =
+    `Step ${tutStep + 1} of ${tutSteps.length}`;
+  document.getElementById('tut-title').textContent = step.title;
+  document.getElementById('tut-body').textContent  = step.body;
+  document.getElementById('tut-next-btn').textContent =
+    isLast ? 'Done ✓' : 'Next →';
+
+  // Highlight the tab
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tut-highlight'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if ((b.getAttribute('onclick') || '').includes("'" + step.tab + "'")) {
+      b.classList.add('tut-highlight');
+      // Position bubble below the highlighted tab
+      const rect = b.getBoundingClientRect();
+      bubble.style.display = 'block';
+      overlay.style.display = 'block';
+      const bw = 280;
+      let left = rect.left + rect.width / 2 - bw / 2;
+      left = Math.max(12, Math.min(left, window.innerWidth - bw - 12));
+      bubble.style.left = left + 'px';
+      bubble.style.top  = (rect.bottom + 14) + 'px';
+      // Arrow
+      const arrow = document.getElementById('tut-arrow');
+      arrow.style.top  = '-6px';
+      arrow.style.left = (rect.left + rect.width / 2 - left - 6) + 'px';
+    }
+  });
+
+  // Switch to the highlighted tab
+  showTab(step.tab);
+}
+
+function nextTutorial() {
+  tutStep++;
+  if (tutStep >= tutSteps.length) { endTutorial(); return; }
+  showTutorialStep();
+}
+
+async function endTutorial() {
+  document.getElementById('tutorial-overlay').style.display = 'none';
+  document.getElementById('tutorial-bubble').style.display  = 'none';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tut-highlight'));
+  // Show today tab (or parishes for superadmin) after tutorial
+  showTab(ROLE === 'superadmin' ? 'parishes' : 'today');
+  // Mark done on server
+  try {
+    await fetch('/api/dashboard/tutorial/done',
+                { method: 'POST', headers: authHeaders() });
+  } catch(e) {}
+}
+
+function skipTutorial() { endTutorial(); }
+
+// ── Messages (parish side) ──
+async function sendMessage() {
+  const cat     = document.getElementById('msg-cat').value;
+  const subject = document.getElementById('msg-subject').value.trim();
+  const body    = document.getElementById('msg-body').value.trim();
+  const status  = document.getElementById('msg-send-status');
+  status.textContent = ''; status.style.color = 'var(--danger)';
+
+  if (!subject) { status.textContent = 'Please enter a subject.'; return; }
+  if (!body)    { status.textContent = 'Please enter your message.'; return; }
+
+  try {
+    const res  = await fetch('/api/dashboard/messages', {
+      method:  'POST',
+      headers: authHeaders(),
+      body:    JSON.stringify({ subject, body, category: cat })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    status.style.color  = 'var(--accent)';
+    status.textContent  = '✓ Message sent. We will respond within 24–48 hours.';
+    document.getElementById('msg-subject').value = '';
+    document.getElementById('msg-body').value    = '';
+    document.getElementById('msg-cat').value     = 'general';
+    loadMyMessages();
+  } catch(e) {
+    status.textContent = e.message || 'Could not send message.';
+  }
+}
+
+async function loadMyMessages() {
+  try {
+    const res  = await fetch('/api/dashboard/messages', { headers: authHeaders() });
+    const data = await res.json();
+    const el   = document.getElementById('my-messages-list');
+    if (!data.length) {
+      el.innerHTML = '<p style="font-size:13px;color:var(--muted);font-style:italic">No messages sent yet.</p>';
+      return;
+    }
+    el.innerHTML = data.map(m => `
+      <div class="msg-card ${m.status}">
+        <div class="msg-header">
+          <div>
+            <span class="cat-pill cat-${m.category}">${catLabel(m.category)}</span>
+            <span class="msg-subject">${m.subject}</span>
+          </div>
+          <span style="font-size:11px;color:var(--muted);white-space:nowrap">
+            ${fmtDate(m.created_at.split('T')[0])}
+          </span>
+        </div>
+        <div class="msg-body">${m.body}</div>
+        ${m.reply ? `
+          <div class="msg-reply">
+            <div class="msg-reply-label">✦ Panalangin replied · ${fmtDate(m.replied_at.split('T')[0])}</div>
+            ${m.reply}
+          </div>` : `
+          <div style="font-size:11px;color:var(--muted)">
+            ${m.status === 'unread' ? '⏳ Awaiting response' : '👁 Seen — awaiting reply'}
+          </div>`}
+      </div>`).join('');
+  } catch(e) {}
+}
+
+function catLabel(cat) {
+  return { general:'General', suggestion:'Suggestion',
+           issue:'Issue', assistance:'Assistance' }[cat] || cat;
+}
+
+// ── Inbox (superadmin side) ──
+let currentInboxFilter = 'unread';
+
+async function loadUnreadCount() {
+  try {
+    const res  = await fetch('/api/superadmin/messages/unread-count',
+                             { headers: authHeaders() });
+    const data = await res.json();
+    const badge = document.getElementById('inbox-badge');
+    if (badge && data.count) {
+      badge.textContent   = data.count;
+      badge.style.display = '';
+      badge.style.background = '#c0392b';
+      badge.style.color      = '#fff';
+    }
+  } catch(e) {}
+}
+
+async function loadInbox(status) {
+  currentInboxFilter = status;
+  ['unread','read','replied','all'].forEach(s => {
+    const btn = document.getElementById('inbox-btn-' + (s || 'all'));
+    if (btn) btn.classList.toggle('active', (s || '') === (status || ''));
+  });
+  try {
+    const url  = '/api/superadmin/messages' + (status ? `?status=${status}` : '');
+    const res  = await fetch(url, { headers: authHeaders() });
+    const data = await res.json();
+    renderInbox(data);
+  } catch(e) {}
+}
+
+function renderInbox(items) {
+  const el = document.getElementById('inbox-list');
+  if (!items.length) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--muted);font-style:italic;padding:12px 0">
+      No ${currentInboxFilter || ''} messages.</p>`;
+    return;
+  }
+  el.innerHTML = items.map(m => `
+    <div class="msg-card ${m.status}" id="inbox-${m.id}">
+      <div class="msg-header">
+        <div>
+          <span class="cat-pill cat-${m.category}">${catLabel(m.category)}</span>
+          <span class="msg-subject">${m.subject}</span>
+        </div>
+        <span style="font-size:11px;color:var(--muted);white-space:nowrap;text-align:right">
+          ${m.parish_name}<br>${fmtDate(m.created_at.split('T')[0])}
+        </span>
+      </div>
+      <div class="msg-meta">From: <strong>${m.sender_email}</strong></div>
+      <div class="msg-body">${m.body}</div>
+      ${m.reply ? `
+        <div class="msg-reply">
+          <div class="msg-reply-label">Your reply · ${fmtDate(m.replied_at.split('T')[0])}</div>
+          ${m.reply}
+        </div>` : `
+        <div class="reply-form" id="reply-form-${m.id}">
+          <textarea rows="3" id="reply-text-${m.id}"
+            placeholder="Type your reply to ${m.parish_name}..."></textarea>
+          <div style="display:flex;gap:8px">
+            <button class="btn-submit" style="width:auto;padding:7px 16px;margin:0"
+              onclick="sendReply(${m.id})">Send reply</button>
+            ${m.status === 'unread' ? `<button class="btn-cancel"
+              onclick="markRead(${m.id})">Mark as read</button>` : ''}
+          </div>
+        </div>`}
+    </div>`).join('');
+}
+
+async function sendReply(id) {
+  const text = document.getElementById('reply-text-' + id).value.trim();
+  if (!text) { alert('Please enter a reply.'); return; }
+  try {
+    const res = await fetch(`/api/superadmin/messages/${id}/reply`, {
+      method:  'PUT',
+      headers: authHeaders(),
+      body:    JSON.stringify({ reply: text })
+    });
+    if (!res.ok) throw new Error();
+    loadInbox(currentInboxFilter);
+    loadUnreadCount();
+  } catch(e) { alert('Could not send reply.'); }
+}
+
+async function markRead(id) {
+  try {
+    await fetch(`/api/superadmin/messages/${id}/read`,
+                { method: 'PUT', headers: authHeaders() });
+    loadInbox(currentInboxFilter);
+    loadUnreadCount();
+  } catch(e) {}
+}
+
+// ── Password change ──
+async function changeOwnPassword() {
+  const current = document.getElementById('pw-current').value;
+  const newpw   = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const msg     = document.getElementById('pw-msg');
+
+  msg.textContent = ''; msg.style.color = 'var(--danger)';
+
+  if (!current || !newpw || !confirm) {
+    msg.textContent = 'Please fill in all fields.'; return;
+  }
+  if (newpw.length < 8) {
+    msg.textContent = 'New password must be at least 8 characters.'; return;
+  }
+  if (newpw !== confirm) {
+    msg.textContent = 'New passwords do not match.'; return;
+  }
+  try {
+    const res  = await fetch('/api/dashboard/password', {
+      method:  'PUT',
+      headers: authHeaders(),
+      body:    JSON.stringify({ current_password: current, new_password: newpw })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    msg.style.color = 'var(--accent)';
+    msg.textContent = '✓ Password changed successfully.';
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value     = '';
+    document.getElementById('pw-confirm').value  = '';
+  } catch(e) {
+    msg.textContent = e.message || 'Could not change password.';
+  }
+}
+
+async function resetStaffPassword(userId, email) {
+  const newpw = prompt(`Set new password for ${email}:
+(minimum 8 characters)`);
+  if (!newpw) return;
+  if (newpw.length < 8) { alert('Password must be at least 8 characters.'); return; }
+  try {
+    const res  = await fetch(`/api/dashboard/users/${userId}/password`, {
+      method:  'PUT',
+      headers: authHeaders(),
+      body:    JSON.stringify({ new_password: newpw })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    alert(`✓ Password reset for ${email}`);
+  } catch(e) {
+    alert(e.message || 'Could not reset password.');
+  }
+}
+
+async function superadminResetPw() {
+  const uid  = document.getElementById('sa-uid').value.trim();
+  const pw   = document.getElementById('sa-pw').value;
+  const msg  = document.getElementById('sa-pw-msg');
+  msg.textContent = ''; msg.style.color = 'var(--danger)';
+  if (!uid || !pw) { msg.textContent = 'Please fill in both fields.'; return; }
+  if (pw.length < 8) { msg.textContent = 'Password must be at least 8 characters.'; return; }
+  if (!confirm(`Reset password for user ID ${uid}?`)) return;
+  try {
+    const res  = await fetch(`/api/superadmin/users/${uid}/password`, {
+      method:  'PUT',
+      headers: authHeaders(),
+      body:    JSON.stringify({ new_password: pw })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    msg.style.color = 'var(--accent)';
+    msg.textContent = '✓ ' + data.message;
+    document.getElementById('sa-uid').value = '';
+    document.getElementById('sa-pw').value  = '';
+  } catch(e) {
+    msg.textContent = e.message || 'Could not reset password.';
+  }
+}
+
+// ── Theme ──
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  document.getElementById('t-bg').value       = p.bg;
+  document.getElementById('t-bg-hex').value   = p.bg;
+  document.getElementById('t-text').value     = p.text;
+  document.getElementById('t-text-hex').value = p.text;
+  document.getElementById('t-accent').value       = p.accent;
+  document.getElementById('t-accent-hex').value   = p.accent;
+  document.getElementById('t-label').value        = p.label;
+  document.getElementById('t-label-hex').value    = p.label;
+  document.getElementById('t-dash').value         = p.dash;
+  document.getElementById('t-dash-hex').value     = p.dash;
+  previewTheme();
+}
+
+function syncColor(colorId, hexId) {
+  const hex = document.getElementById(hexId).value;
+  if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    document.getElementById(colorId).value = hex;
+    previewTheme();
+  }
+}
+
+function previewTheme() {
+  const bg     = document.getElementById('t-bg').value;
+  const text   = document.getElementById('t-text').value;
+  const accent = document.getElementById('t-accent').value;
+  const label  = document.getElementById('t-label').value;
+  const dash   = document.getElementById('t-dash').value;
+
+  const prev = document.getElementById('theme-preview');
+  if (!prev) return;
+  prev.style.background = bg;
+  document.getElementById('prev-cross').style.color = accent;
+  document.getElementById('prev-cat').style.color   = label;
+  document.getElementById('prev-name1').style.color = text;
+  document.getElementById('prev-name2').style.color = text;
+  document.getElementById('prev-name3').style.color = text;
+
+  // Apply dashboard accent live
+  document.documentElement.style.setProperty('--accent',  dash);
+  document.documentElement.style.setProperty('--accent2',
+    dash + '22');
+}
+
+async function loadTheme() {
+  try {
+    const res  = await fetch('/api/dashboard/theme', { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    document.getElementById('t-bg').value         = data.theme_bg;
+    document.getElementById('t-bg-hex').value     = data.theme_bg;
+    document.getElementById('t-text').value       = data.theme_text;
+    document.getElementById('t-text-hex').value   = data.theme_text;
+    document.getElementById('t-accent').value     = data.theme_accent;
+    document.getElementById('t-accent-hex').value = data.theme_accent;
+    document.getElementById('t-label').value      = data.theme_label;
+    document.getElementById('t-label-hex').value  = data.theme_label;
+    document.getElementById('t-dash').value       = data.dash_accent;
+    document.getElementById('t-dash-hex').value   = data.dash_accent;
+    previewTheme();
+  } catch(e) {}
+}
+
+async function saveTheme() {
+  const msg = document.getElementById('theme-msg');
+  try {
+    const res = await fetch('/api/dashboard/theme', {
+      method:  'PUT',
+      headers: authHeaders(),
+      body:    JSON.stringify({
+        theme_bg:     document.getElementById('t-bg').value,
+        theme_text:   document.getElementById('t-text').value,
+        theme_accent: document.getElementById('t-accent').value,
+        theme_label:  document.getElementById('t-label').value,
+        dash_accent:  document.getElementById('t-dash').value,
+      })
+    });
+    if (!res.ok) throw new Error();
+    msg.style.color = 'var(--accent)';
+    msg.textContent = '✓ Theme saved. Display page will use new colors.';
+    setTimeout(() => { msg.textContent = ''; }, 3000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'Could not save theme.';
+  }
+}
+
+// Apply dashboard accent on login from status
+function applyDashAccent(accent) {
+  if (!accent) return;
+  document.documentElement.style.setProperty('--accent', accent);
+  document.documentElement.style.setProperty('--accent2', accent + '22');
+}
+
+// ── Utilities ──
+function toDateStr(d) {
+  return d.toISOString().split('T')[0];
+}
+function fmtDate(s) {
+  return new Date(s + 'T00:00:00').toLocaleDateString('en-PH',
+    { month:'short', day:'numeric', year:'numeric' });
+}
+function esc(s) { return (s || '').replace(/'/g, "\'"); }
+</script>
+<!-- ── PAYMENT MODAL ── -->
+<div class="modal-overlay-pay" id="pay-overlay">
+  <div class="pay-modal">
+    <h2>Subscribe to Panalangin</h2>
+    <p class="pay-sub">Choose a plan and pay via GCash</p>
+
+    <div class="pay-plans">
+      <div class="pay-plan-btn selected" id="plan-monthly"
+           onclick="selectPlan('monthly')">
+        <div class="plan-name">Monthly</div>
+        <div class="plan-price">₱200</div>
+        <div class="plan-period">per month</div>
+      </div>
+      <div class="pay-plan-btn" id="plan-annual"
+           onclick="selectPlan('annual')">
+        <div class="plan-name">Annual</div>
+        <div class="plan-price">₱2,000</div>
+        <div class="plan-period">per year</div>
+        <div class="plan-save">Save ₱400</div>
+      </div>
+    </div>
+
+    <hr class="pay-divider">
+
+    <div class="qr-wrap">
+      <img src="/static/gcash-qr.jpg" alt="GCash QR Code" style="width:100%;height:100%;object-fit:cover">
+    </div>
+    <div class="qr-label">
+  Scan with GCash or InstaPay app<br>
+  <strong style="color:var(--text)">MA*K AN****Y M.</strong><br>
+  <span style="font-size:11px">Mobile: +63 927 562 ••••</span>
+</div>
+
+    <div class="pay-amount-badge" id="pay-amount-badge">₱200 — Monthly</div>
+
+    <div class="pay-steps">
+      <strong>1.</strong> Scan the QR code above with your GCash app<br>
+      <strong>2.</strong> Pay the exact amount shown<br>
+      <strong>3.</strong> Enter your GCash reference number below<br>
+      <strong>4.</strong> Submit — your subscription will be activated within 24 hours after payment is verified
+    </div>
+
+    <div id="pay-ref-row" class="show">
+      <div class="form-row" style="text-align:left">
+        <label>GCash reference number</label>
+        <input type="text" id="pay-ref"
+          placeholder="e.g. 1234567890"
+          style="font-family:monospace;letter-spacing:.05em">
+      </div>
+    </div>
+
+    <div id="pay-msg" style="font-size:12px;margin-top:6px;min-height:1.2em;color:var(--danger)"></div>
+
+    <div class="pay-footer">
+      <button class="btn-cancel" onclick="closePayModal()">Cancel</button>
+      <button class="btn-save" onclick="submitPayment()">Submit payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TUTORIAL OVERLAY ── -->
+<div id="tutorial-overlay" style="display:none;position:fixed;inset:0;z-index:500;pointer-events:none"></div>
+<div id="tutorial-bubble" style="display:none;position:fixed;z-index:501;max-width:280px;
+  background:#1a1814;color:#f0ead6;border-radius:10px;padding:16px 18px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.35);pointer-events:all">
+  <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+              color:#c9b97a;margin-bottom:6px" id="tut-step-label"></div>
+  <div style="font-size:14px;font-weight:500;margin-bottom:6px" id="tut-title"></div>
+  <div style="font-size:13px;color:#a09888;line-height:1.5;margin-bottom:14px" id="tut-body"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <button onclick="skipTutorial()" style="background:none;border:none;color:#5a5248;
+      font-size:12px;cursor:pointer;padding:0">Skip tutorial</button>
+    <button onclick="nextTutorial()" id="tut-next-btn" style="background:#c9b97a;color:#1a1814;
+      border:none;padding:7px 18px;border-radius:6px;font-size:13px;
+      font-weight:500;cursor:pointer">Next →</button>
+  </div>
+  <div id="tut-arrow" style="position:absolute;width:12px;height:12px;
+    background:#1a1814;transform:rotate(45deg)"></div>
+</div>
+</body>
+</html>

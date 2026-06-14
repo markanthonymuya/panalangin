@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panalangin — Request a Registration Code</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx='50' cy='50' r='45' fill='%23c9b97a'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='%231a1814'>+</text></svg>">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold:   #c9b97a;
+  --bg:     #f7f5f0;
+  --card:   #ffffff;
+  --border: #e2ddd4;
+  --text:   #1a1814;
+  --muted:  #7a7268;
+  --green:  #2d5a3d;
+  --green2: #e8f0eb;
+  --danger: #c0392b;
+  --dark:   #080c18;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; padding: 0;
+}
+nav {
+  background: var(--dark); padding: 0 5vw; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo { font-family: Georgia, serif; font-size: 16px;
+            letter-spacing: .08em; color: var(--gold); }
+.nav-back { color: rgba(240,234,214,0.5); text-decoration: none;
+            font-size: 13px; }
+.nav-back:hover { color: var(--gold); }
+
+.page-wrap {
+  max-width: 620px; margin: 0 auto; padding: 3rem 1.5rem 5rem;
+}
+.page-eyebrow {
+  font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--green); margin-bottom: 8px; font-weight: 500;
+}
+h1 { font-family: Georgia, serif; font-size: 1.9rem; font-weight: 400;
+     margin-bottom: 10px; line-height: 1.2; }
+.page-sub {
+  font-size: 14px; color: var(--muted); margin-bottom: 2rem;
+  line-height: 1.7; max-width: 480px;
+}
+
+.privacy-note {
+  background: var(--green2); border: 1px solid #b8d4be;
+  border-radius: 8px; padding: 12px 16px;
+  font-size: 12px; color: var(--green); line-height: 1.6;
+  margin-bottom: 2rem; display: flex; gap: 10px;
+}
+.privacy-note::before { content: "🔒"; flex-shrink: 0; }
+
+.form-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 2rem;
+}
+.form-row { margin-bottom: 1.1rem; }
+.form-row label {
+  display: block; font-size: 12px; color: var(--muted);
+  letter-spacing: .04em; margin-bottom: 5px;
+}
+.form-row label span { color: var(--danger); margin-left: 2px; }
+.form-row input {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 14px; background: #fff; transition: border-color 0.2s;
+}
+.form-row input:focus { outline: none; border-color: var(--green); }
+.form-row input.error { border-color: var(--danger); }
+.field-error { font-size: 11px; color: var(--danger); margin-top: 4px; display: none; }
+.field-error.show { display: block; }
+
+.form-divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 1.5rem 0;
+}
+.form-group-label {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 1rem; font-weight: 500;
+}
+
+.btn-submit {
+  width: 100%; padding: 12px; background: var(--green); color: #fff;
+  border: none; border-radius: 8px; font-size: 15px; font-weight: 500;
+  cursor: pointer; margin-top: 0.5rem; transition: opacity 0.2s;
+}
+.btn-submit:hover { opacity: .9; }
+.btn-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+#form-msg { font-size: 13px; margin-top: 10px; min-height: 1.3em; }
+#form-msg.err { color: var(--danger); }
+#form-msg.ok  { color: var(--green); }
+
+/* SUCCESS */
+#success-screen {
+  display: none; text-align: center; padding: 3rem 1rem;
+}
+.success-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--green2); display: flex; align-items: center;
+  justify-content: center; font-size: 28px; margin: 0 auto 1.5rem;
+}
+#success-screen h2 {
+  font-family: Georgia, serif; font-size: 1.5rem; font-weight: 400;
+  margin-bottom: 10px;
+}
+#success-screen p { font-size: 14px; color: var(--muted); line-height: 1.7;
+                    max-width: 400px; margin: 0 auto 1.5rem; }
+.success-detail {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1rem 1.25rem; text-align: left;
+  font-size: 13px; max-width: 400px; margin: 0 auto 1.5rem;
+}
+.success-detail div { padding: 4px 0; color: var(--muted); }
+.success-detail strong { color: var(--text); }
+.btn-home {
+  display: inline-block; padding: 10px 24px;
+  background: var(--green); color: #fff; border-radius: 8px;
+  text-decoration: none; font-size: 14px; font-weight: 500;
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo" style="text-decoration:none">✦ Panalangin</a>
+  <a href="/" class="nav-back">← Back to home</a>
+</nav>
+
+<div class="page-wrap">
+
+  <div id="form-screen">
+    <div class="page-eyebrow">Get started</div>
+    <h1>Request a registration code</h1>
+    <p class="page-sub">
+      Fill in your parish details below. The Panalangin administrator will review your request and send you an access code — usually within 24 hours.
+    </p>
+
+    <div class="privacy-note">
+      The information you provide is used solely to verify your parish identity before granting access. It will not be shared with third parties or used for any other purpose.
+    </div>
+
+    <div class="form-card">
+
+      <div class="form-group-label">Parish information</div>
+
+      <div class="form-row">
+        <label>Parish name <span>*</span></label>
+        <input type="text" id="f-parish" placeholder="e.g. St. Thomas Aquinas Parish, Cabuyao">
+        <div class="field-error" id="e-parish">Please enter your parish name.</div>
+      </div>
+
+      <div class="form-row">
+        <label>Parish priest <span>*</span></label>
+        <input type="text" id="f-priest" placeholder="e.g. Rev. Fr. Eduardo Manalo">
+        <div class="field-error" id="e-priest">Please enter the name of your parish priest.</div>
+      </div>
+
+      <div class="form-row">
+        <label>Parish Facebook page <span>*</span></label>
+        <input type="text" id="f-facebook" placeholder="e.g. facebook.com/stthomascabuyao">
+        <div class="field-error" id="e-facebook">Please enter your parish Facebook page URL.</div>
+      </div>
+
+      <hr class="form-divider">
+      <div class="form-group-label">Parish representative</div>
+
+      <div class="form-row">
+        <label>Full name of representative <span>*</span></label>
+        <input type="text" id="f-rep" placeholder="e.g. Lourdes Reyes">
+        <div class="field-error" id="e-rep">Please enter the representative's full name.</div>
+      </div>
+
+      <div class="form-row">
+        <label>Email address <span>*</span></label>
+        <input type="email" id="f-email" placeholder="e.g. communications@stthomas.org">
+        <div class="field-error" id="e-email">Please enter a valid email address.</div>
+      </div>
+
+      <div class="form-row">
+        <label>Contact number <span>*</span></label>
+        <input type="tel" id="f-contact" placeholder="e.g. 09171234567">
+        <div class="field-error" id="e-contact">Please enter a contact number.</div>
+      </div>
+
+      <button class="btn-submit" id="submit-btn" onclick="submitRequest()">
+        Submit request
+      </button>
+      <div id="form-msg"></div>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="success-screen">
+    <div class="success-icon">✦</div>
+    <h2>Request submitted!</h2>
+    <p>
+      Thank you. The Panalangin administrator will review your request and send your access code to the email address you provided — usually within 24 hours.
+    </p>
+    <div class="success-detail" id="success-detail"></div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:1.5rem">
+      Once you receive the code, go to <strong>/register</strong> to complete your parish registration and start your free 3-month trial.
+    </p>
+    <a href="/" class="btn-home">Back to home →</a>
+  </div>
+
+</div>
+
+<script>
+function validate() {
+  const fields = [
+    { id:'f-parish',   err:'e-parish',   label:'Parish name' },
+    { id:'f-priest',   err:'e-priest',   label:'Parish priest' },
+    { id:'f-facebook', err:'e-facebook', label:'Facebook page' },
+    { id:'f-rep',      err:'e-rep',      label:'Representative name' },
+    { id:'f-email',    err:'e-email',    label:'Email address' },
+    { id:'f-contact',  err:'e-contact',  label:'Contact number' },
+  ];
+  let valid = true;
+  fields.forEach(f => {
+    const input = document.getElementById(f.id);
+    const err   = document.getElementById(f.err);
+    if (!input.value.trim()) {
+      input.classList.add('error');
+      err.classList.add('show');
+      valid = false;
+    } else {
+      input.classList.remove('error');
+      err.classList.remove('show');
+    }
+  });
+  // Email format check
+  const email = document.getElementById('f-email');
+  if (email.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+    email.classList.add('error');
+    document.getElementById('e-email').textContent = 'Please enter a valid email address.';
+    document.getElementById('e-email').classList.add('show');
+    valid = false;
+  }
+  return valid;
+}
+
+async function submitRequest() {
+  if (!validate()) return;
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('form-msg');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+  msg.textContent = ''; msg.className = '';
+
+  const payload = {
+    parish_name:    document.getElementById('f-parish').value.trim(),
+    parish_priest:  document.getElementById('f-priest').value.trim(),
+    facebook_page:  document.getElementById('f-facebook').value.trim(),
+    representative: document.getElementById('f-rep').value.trim(),
+    email:          document.getElementById('f-email').value.trim(),
+    contact_number: document.getElementById('f-contact').value.trim(),
+  };
+
+  try {
+    const res  = await fetch('/api/request-code', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Submission failed');
+
+    // Show success
+    document.getElementById('form-screen').style.display = 'none';
+    document.getElementById('success-detail').innerHTML = `
+      <div><strong>Parish:</strong> ${payload.parish_name}</div>
+      <div><strong>Parish priest:</strong> ${payload.parish_priest}</div>
+      <div><strong>Representative:</strong> ${payload.representative}</div>
+      <div><strong>Email:</strong> ${payload.email}</div>
+      <div><strong>Contact:</strong> ${payload.contact_number}</div>`;
+    document.getElementById('success-screen').style.display = 'block';
+  } catch(e) {
+    msg.textContent = e.message;
+    msg.className   = 'err';
+    btn.disabled    = false;
+    btn.textContent = 'Submit request';
+  }
+}
+
+// Clear error on input
+document.querySelectorAll('input').forEach(input => {
+  input.addEventListener('input', () => {
+    input.classList.remove('error');
+    const errEl = document.getElementById('e-' + input.id.replace('f-', ''));
+    if (errEl) errEl.classList.remove('show');
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitRequest();
+  });
+});
+</script>
+</body>
+</html>
