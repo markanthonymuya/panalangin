@@ -76,6 +76,13 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
+DEFAULT_CATEGORIES = [
+    "Thanksgiving", "Wedding Anniversary", "Gift of Life",
+    "Special Intention", "Healing", "Fast Recovery",
+    "Safe Travel", "Souls", "9th Day",
+    "40th Day", "Death Anniversary", "Mass Card"
+]
+
 # ─────────────────────────────────────────────
 # Seed helper — creates a parish + admin user
 # on first run so you can log in immediately
@@ -97,13 +104,7 @@ def seed_demo(db: Session):
     db.add(parish)
     db.flush()
 
-    default_categories = [
-        "Thanksgiving", "Birthday", "Special Intentions",
-        "Healing", "Souls", "Wedding Anniversary",
-        "Mass Card", "9th Day", "40th Day",
-        "Death Anniversary", "Speedy Recovery"
-    ]
-    for i, label in enumerate(default_categories):
+    for i, label in enumerate(DEFAULT_CATEGORIES):
         db.add(models.Category(parish_id=parish.id, label=label, display_order=i))
 
     # Superadmin account (platform owner)
@@ -148,6 +149,29 @@ def seed_demo(db: Session):
 # Recreate all tables (safe — skips existing ones)
 Base.metadata.create_all(bind=engine)
 
+def sync_categories(db: Session):
+    """Add missing default categories and fix display_order for all parishes."""
+    parishes = db.query(models.Parish).all()
+    for parish in parishes:
+        existing = {
+            c.label: c
+            for c in db.query(models.Category)
+                       .filter(models.Category.parish_id == parish.id)
+                       .all()
+        }
+        for order, label in enumerate(DEFAULT_CATEGORIES):
+            if label in existing:
+                cat = existing[label]
+                if cat.display_order != order:
+                    cat.display_order = order
+            else:
+                db.add(models.Category(
+                    parish_id=parish.id,
+                    label=label,
+                    display_order=order
+                ))
+    db.commit()
+
 with next(get_db()) as _db:
     from sqlalchemy import text
     try:
@@ -169,6 +193,7 @@ with next(get_db()) as _db:
         seed_demo(_db)
     else:
         seed_demo(_db)
+    sync_categories(_db)
 
 # ─────────────────────────────────────────────
 # Pydantic schemas
@@ -514,13 +539,7 @@ def register_parish(payload: RegisterPayload, db: Session = Depends(get_db)):
     db.flush()
 
     # Add default categories
-    default_categories = [
-        "Thanksgiving", "Birthday", "Special Intentions",
-        "Healing", "Souls", "Wedding Anniversary",
-        "Mass Card", "9th Day", "40th Day",
-        "Death Anniversary", "Speedy Recovery"
-    ]
-    for i, label in enumerate(default_categories):
+    for i, label in enumerate(DEFAULT_CATEGORIES):
         db.add(models.Category(parish_id=parish.id, label=label, display_order=i))
 
     # Create admin user
@@ -715,13 +734,7 @@ def create_parish_manual(
     db.add(parish)
     db.flush()
 
-    default_categories = [
-        "Thanksgiving", "Birthday", "Special Intentions",
-        "Healing", "Souls", "Wedding Anniversary",
-        "Mass Card", "9th Day", "40th Day",
-        "Death Anniversary", "Speedy Recovery"
-    ]
-    for i, label in enumerate(default_categories):
+    for i, label in enumerate(DEFAULT_CATEGORIES):
         db.add(models.Category(parish_id=parish.id, label=label, display_order=i))
 
     admin = models.User(
