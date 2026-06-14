@@ -1,5 +1,6 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Form, BackgroundTasks
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -34,12 +35,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")), name="static")
 
 # ─────────────────────────────────────────────
 # Auth config
 # ─────────────────────────────────────────────
-SECRET_KEY = "change-this-to-a-long-random-string-before-deploying"
+SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-to-a-long-random-string-before-deploying")
 ALGORITHM  = "HS256"
 TOKEN_EXPIRE_HOURS = 12
 
@@ -1505,7 +1506,6 @@ def search_intentions(
 # ─────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 def root():
-    import os
     base_dir  = os.path.dirname(os.path.abspath(__file__))
     html_path = os.path.join(base_dir, "static", "index.html")
     try:
@@ -1516,12 +1516,10 @@ def root():
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page():
-    import os
     base_dir  = os.path.dirname(os.path.abspath(__file__))
     html_path = os.path.join(base_dir, "static", "dashboard.html")
     with open(html_path, encoding="utf-8") as f:
         html = f.read()
-    from fastapi.responses import Response
     return Response(
         content=html,
         media_type="text/html",
@@ -1533,7 +1531,6 @@ def dashboard_page():
 
 @app.get("/favicon.ico")
 def favicon():
-    from fastapi.responses import Response
     svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <circle cx="50" cy="50" r="45" fill="#c9b97a"/>
       <text x="50" y="68" font-size="55" text-anchor="middle" fill="#1a1814">+</text>
@@ -1550,7 +1547,6 @@ def request_code_page():
 
 @app.get("/{slug}/display", response_class=HTMLResponse)
 def display_page(slug: str):
-    import os
     base_dir  = os.path.dirname(os.path.abspath(__file__))
     html_path = os.path.join(base_dir, "static", "display.html")
     try:

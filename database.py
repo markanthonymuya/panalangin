@@ -1,14 +1,12 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-# SQLite for local dev — swap this one line for PostgreSQL on deployment:
-# DATABASE_URL = "postgresql://user:password@localhost/panalangin"
-DATABASE_URL = "sqlite:///./panalangin.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./panalangin.db")
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}  # SQLite only — remove for PostgreSQL
-)
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
