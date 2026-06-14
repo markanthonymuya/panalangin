@@ -78,7 +78,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
 
 DEFAULT_CATEGORIES = [
     "Thanksgiving", "Wedding Anniversary", "Gift of Life",
-    "Special Intention", "Healing", "Fast Recovery",
+    "Special Intentions", "Healing", "Fast Recovery",
     "Safe Travel", "Souls", "9th Day",
     "40th Day", "Death Anniversary", "Mass Card"
 ]
@@ -150,7 +150,7 @@ def seed_demo(db: Session):
 Base.metadata.create_all(bind=engine)
 
 def sync_categories(db: Session):
-    """Add missing default categories and fix display_order for all parishes."""
+    """Add missing default categories, fix display_order, and run label migrations."""
     parishes = db.query(models.Parish).all()
     for parish in parishes:
         existing = {
@@ -159,6 +159,45 @@ def sync_categories(db: Session):
                        .filter(models.Category.parish_id == parish.id)
                        .all()
         }
+
+        # "Special Intention" → "Special Intentions"
+        if "Special Intention" in existing:
+            old = existing.pop("Special Intention")
+            if "Special Intentions" in existing:
+                # Both exist — move intentions to the surviving one then delete old
+                db.query(models.Intention).filter(
+                    models.Intention.category_id == old.id
+                ).update({"category_id": existing["Special Intentions"].id})
+                db.delete(old)
+            else:
+                old.label = "Special Intentions"
+                existing["Special Intentions"] = old
+
+        # "Birthday" → "Gift of Life"
+        if "Birthday" in existing:
+            old = existing.pop("Birthday")
+            if "Gift of Life" in existing:
+                # Both exist — retransfer Birthday intentions to Gift of Life
+                db.query(models.Intention).filter(
+                    models.Intention.category_id == old.id
+                ).update({"category_id": existing["Gift of Life"].id})
+                db.delete(old)
+            else:
+                old.label = "Gift of Life"
+                existing["Gift of Life"] = old
+
+        # "Speedy Recovery" → "Fast Recovery"
+        if "Speedy Recovery" in existing:
+            old = existing.pop("Speedy Recovery")
+            if "Fast Recovery" in existing:
+                db.query(models.Intention).filter(
+                    models.Intention.category_id == old.id
+                ).update({"category_id": existing["Fast Recovery"].id})
+                db.delete(old)
+            else:
+                old.label = "Fast Recovery"
+                existing["Fast Recovery"] = old
+
         for order, label in enumerate(DEFAULT_CATEGORIES):
             if label in existing:
                 cat = existing[label]
