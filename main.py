@@ -387,12 +387,19 @@ def get_display_intentions(slug: str, db: Session = Depends(get_db)):
             ).order_by(models.Intention.name).all()  # alphabetical
 
             if intentions:
+                seen = set()
+                unique_names = []
+                for i in intentions:
+                    key = i.name.strip().lower()
+                    if key not in seen:
+                        seen.add(key)
+                        unique_names.append(i.name)
                 result["categories"].append({
                     "label":         cat.label,
                     "display_order": cat.display_order,
                     "intentions": [
-                        {"name": i.name}
-                        for i in intentions
+                        {"name": n}
+                        for n in unique_names
                     ]
                 })
         return result
