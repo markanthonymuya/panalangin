@@ -117,9 +117,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 .btn-submit { padding: 9px 24px; background: var(--accent); color: #fff; border: none;
               border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .btn-submit:hover { opacity: .9; }
-#form-msg { font-size: 12px; margin-top: 8px; min-height: 1.3em; }
-#form-msg.ok  { color: var(--accent); }
-#form-msg.err { color: var(--danger); }
+#form-msg { font-size: 13px; margin-top: 10px; min-height: 1.5em; border-radius: 6px; }
+#form-msg.ok  { color: #155724; background: #d4edda; padding: 10px 14px; border: 1px solid #c3e6cb; font-weight: 500; }
+#form-msg.err { color: #721c24; background: #f8d7da; padding: 10px 14px; border: 1px solid #f5c6cb; font-weight: 500; }
+#theme-msg    { font-size: 13px; min-height: 1.5em; border-radius: 6px; }
+#theme-msg.ok { color: #155724; background: #d4edda; padding: 10px 14px; border: 1px solid #c3e6cb; font-weight: 500; }
+#theme-msg.err{ color: #721c24; background: #f8d7da; padding: 10px 14px; border: 1px solid #f5c6cb; font-weight: 500; }
+#s-save-msg    { font-size: 13px; min-height: 1.5em; border-radius: 6px; }
+#s-save-msg.ok { color: #155724; background: #d4edda; padding: 10px 14px; border: 1px solid #c3e6cb; font-weight: 500; }
+#s-save-msg.err{ color: #721c24; background: #f8d7da; padding: 10px 14px; border: 1px solid #f5c6cb; font-weight: 500; }
 
 /* ── MANAGE TABLE ── */
 .filter-row { display: flex; gap: 10px; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
@@ -477,7 +483,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           </div>
         </div>
 
-        <button class="btn-submit" onclick="submitIntention()"
+        <button id="submit-btn" class="btn-submit" onclick="submitIntention()"
           style="margin-top:1.2rem;width:100%">Save all intentions</button>
         <div id="form-msg"></div>
       </div>
@@ -488,7 +494,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       <div class="section-title">Manage intentions</div>
       <div class="section-sub">View, edit, or delete encoded intentions</div>
       <div class="filter-row">
-        <button class="filter-quick active" id="btn-week"  onclick="setQuick('week')">This week</button>
+        <button class="filter-quick active" id="btn-today" onclick="setQuick('today')">Today</button>
+        <button class="filter-quick"        id="btn-week"  onclick="setQuick('week')">This week</button>
         <button class="filter-quick"        id="btn-month" onclick="setQuick('month')">This month</button>
         <button class="filter-quick"        id="btn-all"   onclick="setQuick('all')">All</button>
         <span style="margin-left:8px;color:var(--muted);font-size:12px">or</span>
@@ -632,12 +639,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         </div>
       </div>
 
-      <div style="margin-top:1.2rem;max-width:640px;display:flex;gap:10px;align-items:center">
-        <button class="btn-submit" onclick="saveTheme()">Save theme</button>
-        <button onclick="applyPreset('classic')"
-          style="padding:9px 18px;border:1px solid var(--border);border-radius:6px;
-          background:var(--card);font-size:13px;cursor:pointer">Reset to default</button>
-        <div id="theme-msg" style="font-size:12px;min-height:1.2em"></div>
+      <div style="margin-top:1.2rem;max-width:640px">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+          <button id="theme-save-btn" class="btn-submit" onclick="saveTheme()">Save theme</button>
+          <button onclick="applyPreset('classic')"
+            style="padding:9px 18px;border:1px solid var(--border);border-radius:6px;
+            background:var(--card);font-size:13px;cursor:pointer">Reset to default</button>
+        </div>
+        <div id="theme-msg"></div>
       </div>
     </div>
 
@@ -733,7 +742,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           <strong id="s-current-url" style="font-family:monospace;color:var(--accent);word-break:break-all"></strong>
         </div>
         <button class="btn-submit" id="s-save-btn" onclick="saveSlug()" style="margin-top:1.2rem" disabled>Save new URL</button>
-        <div id="s-save-msg" style="font-size:12px;margin-top:8px;min-height:1.3em"></div>
+        <div id="s-save-msg" style="margin-top:8px"></div>
         <div id="s-history" style="margin-top:1.5rem;display:none">
           <div style="font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.04em;margin-bottom:8px">Change history</div>
           <div id="s-history-list"></div>
@@ -1109,7 +1118,7 @@ function showTab(name) {
     const fn = b.getAttribute('onclick') || '';
     b.classList.toggle('active', fn.includes("'" + name + "'"));
   });
-  if (name === 'manage')   { setQuick(currentQuick || 'week'); updateSortHeaders(); }
+  if (name === 'manage')   { setQuick(currentQuick || 'today'); updateSortHeaders(); }
   if (name === 'messages') { loadMyMessages(); }
   if (name === 'inbox')    { loadInbox('unread'); }
   if (name === 'payments') { loadPayments('pending'); }
@@ -1238,6 +1247,7 @@ function renderNameTags() {
 }
 
 async function submitIntention() {
+  const btn   = document.getElementById('submit-btn');
   const off   = document.getElementById('f-offered').value.trim();
   const cat   = document.getElementById('f-cat').value;
   const start = document.getElementById('f-start').value;
@@ -1253,7 +1263,9 @@ async function submitIntention() {
     showMsg('err', 'End date must be on or after start date.'); return;
   }
 
-  showMsg('ok', `Saving ${pendingNames.length} intention(s)...`);
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  showMsg('ok', `Saving ${pendingNames.length} intention(s)…`);
 
   let saved = 0, failed = 0;
   for (const name of pendingNames) {
@@ -1276,6 +1288,9 @@ async function submitIntention() {
     }
   }
 
+  btn.disabled = false;
+  btn.textContent = 'Save all intentions';
+
   if (failed === 0) {
     showMsg('ok', `✓ ${saved} intention(s) saved successfully.`);
     pendingNames = [];
@@ -1296,7 +1311,7 @@ function showMsg(type, text) {
 }
 
 // ── MANAGE tab ──
-let currentQuick = 'week';
+let currentQuick = 'today';
 let currentMonth = new Date();
 
 function setQuick(mode) {
@@ -1305,7 +1320,12 @@ function setQuick(mode) {
   document.getElementById('btn-' + mode).classList.add('active');
   const monthNav = document.getElementById('month-nav');
 
-  if (mode === 'week') {
+  if (mode === 'today') {
+    monthNav.style.display = 'none';
+    const today = toDateStr(new Date());
+    document.getElementById('filter-start').value = today;
+    document.getElementById('filter-end').value   = today;
+  } else if (mode === 'week') {
     monthNav.style.display = 'none';
     const now   = new Date();
     const day   = now.getDay();
@@ -2046,7 +2066,9 @@ async function saveSlug() {
   const val = document.getElementById('s-slug').value.trim();
   const msg = document.getElementById('s-save-msg');
   const btn = document.getElementById('s-save-btn');
-  btn.disabled = true;
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+  msg.textContent = ''; msg.className = '';
   try {
     const res  = await fetch('/api/dashboard/slug', {
       method:  'PUT',
@@ -2057,7 +2079,7 @@ async function saveSlug() {
     if (!res.ok) throw new Error(data.detail);
 
     currentSlug = data.new_slug;
-    msg.style.color = 'var(--accent)';
+    msg.className   = 'ok';
     msg.textContent = '✓ Display URL updated successfully.';
 
     document.getElementById('s-current-url').textContent =
@@ -2067,9 +2089,11 @@ async function saveSlug() {
     // Refresh history
     loadSettings();
   } catch(e) {
-    msg.style.color = 'var(--danger)';
+    msg.className   = 'err';
     msg.textContent = e.message || 'Could not update URL.';
     btn.disabled    = false;
+  } finally {
+    btn.textContent = 'Save new URL';
   }
 }
 
@@ -2595,6 +2619,10 @@ async function loadTheme() {
 
 async function saveTheme() {
   const msg = document.getElementById('theme-msg');
+  const btn = document.getElementById('theme-save-btn');
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+  msg.textContent = ''; msg.className = '';
   try {
     const res = await fetch('/api/dashboard/theme', {
       method:  'PUT',
@@ -2608,12 +2636,15 @@ async function saveTheme() {
       })
     });
     if (!res.ok) throw new Error();
-    msg.style.color = 'var(--accent)';
+    msg.className   = 'ok';
     msg.textContent = '✓ Theme saved. Display page will use new colors.';
-    setTimeout(() => { msg.textContent = ''; }, 3000);
+    setTimeout(() => { msg.textContent = ''; msg.className = ''; }, 4000);
   } catch(e) {
-    msg.style.color = 'var(--danger)';
+    msg.className   = 'err';
     msg.textContent = 'Could not save theme.';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Save theme';
   }
 }
 
