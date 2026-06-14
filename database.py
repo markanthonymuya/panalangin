@@ -2,7 +2,11 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./panalangin.db")
+DATABASE_URL = (
+    os.environ.get("DATABASE_URL_UNPOOLED") or
+    os.environ.get("DATABASE_URL") or
+    "sqlite:///./panalangin.db"
+)
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
