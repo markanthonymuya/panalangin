@@ -2724,6 +2724,49 @@ function fmtDate(s) {
     { month:'short', day:'numeric', year:'numeric' });
 }
 function esc(s) { return (s || '').replace(/'/g, "\'"); }
+
+// ── PRINT TODAY ──
+function printToday() {
+  const area = document.getElementById('print-area');
+
+  // Group intention names by category label
+  const grouped = {};
+  todayItems.forEach(i => {
+    if (!grouped[i.category]) grouped[i.category] = [];
+    grouped[i.category].push(i.name);
+  });
+
+  // Sort names alphabetically within each category
+  Object.keys(grouped).forEach(cat => grouped[cat].sort((a, b) =>
+    a.localeCompare(b, 'en-PH', { sensitivity: 'base' })
+  ));
+
+  // Render category blocks in display_order (CATEGORIES is already ordered)
+  const catBlocks = CATEGORIES
+    .filter(c => grouped[c.label])
+    .map(c => `
+      <div class="print-cat-block">
+        <div class="print-cat-label">${c.label}</div>
+        ${grouped[c.label].map(n => `<span class="print-name">${n}</span>`).join('')}
+      </div>`).join('');
+
+  const dateStr = new Date().toLocaleDateString('en-PH', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  area.innerHTML = `
+    <div class="print-header">
+      <h1>${PARISH_NAME}</h1>
+      <p>Mass Intentions &mdash; ${dateStr}</p>
+    </div>
+    <hr class="print-rule">
+    <div class="print-columns">${catBlocks || '<p>No intentions for today.</p>'}</div>`;
+
+  window.print();
+
+  // Clear print area after dialog closes
+  setTimeout(() => { area.innerHTML = ''; }, 1000);
+}
 </script>
 <!-- ── PAYMENT MODAL ── -->
 <div class="modal-overlay-pay" id="pay-overlay">
@@ -2804,5 +2847,7 @@ function esc(s) { return (s || '').replace(/'/g, "\'"); }
   <div id="tut-arrow" style="position:absolute;width:12px;height:12px;
     background:#1a1814;transform:rotate(45deg)"></div>
 </div>
+
+<div id="print-area"></div>
 </body>
 </html>
