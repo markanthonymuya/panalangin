@@ -1127,6 +1127,7 @@ async function bootApp(payload) {
       if (el) el.style.display = '';
     });
     await loadStatus();
+    if (!TOKEN) return;
     showTab('requests');
     loadUnreadCount();
     loadPendingCount();
@@ -1143,6 +1144,7 @@ async function bootApp(payload) {
       if (usersBtn) usersBtn.style.display = '';
     }
     await loadStatus();
+    if (!TOKEN) return;
     await loadCategories();
     await loadToday();
     showTab('today');
@@ -1195,6 +1197,11 @@ async function loadCategories() {
     const res = await fetch(API + '/api/dashboard/categories', {
       headers: authHeaders()
     });
+    if (res.status === 401) {
+      doLogout();
+      document.getElementById('login-error').textContent = 'Session expired. Please log in again.';
+      return;
+    }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (Array.isArray(data) && data.length) {
@@ -1231,6 +1238,11 @@ async function loadToday() {
       `${API}/api/dashboard/intentions?start=${today}&end=${today}`,
       { headers: authHeaders() }
     );
+    if (res.status === 401) {
+      doLogout();
+      document.getElementById('login-error').textContent = 'Session expired. Please log in again.';
+      return;
+    }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     todayItems = data;
@@ -1586,7 +1598,13 @@ if (payOverlay) payOverlay.addEventListener('click', function(e) {
 async function loadStatus() {
   try {
     const res  = await fetch('/api/dashboard/status', { headers: authHeaders() });
-    if (!res.ok) return;
+    if (!res.ok) {
+      if (res.status === 401) {
+        doLogout();
+        document.getElementById('login-error').textContent = 'Session expired. Please log in again.';
+      }
+      return;
+    }
     const data = await res.json();
     ROLE   = data.role;
     LOCKED = data.locked;
