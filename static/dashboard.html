@@ -2724,6 +2724,9 @@ function fmtDate(s) {
     { month:'short', day:'numeric', year:'numeric' });
 }
 function esc(s) { return (s || '').replace(/'/g, "\'"); }
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // ── PRINT TODAY ──
 function printToday() {
@@ -2746,8 +2749,8 @@ function printToday() {
     .filter(c => grouped[c.label])
     .map(c => `
       <div class="print-cat-block">
-        <div class="print-cat-label">${c.label}</div>
-        ${grouped[c.label].map(n => `<span class="print-name">${n}</span>`).join('')}
+        <div class="print-cat-label">${escHtml(c.label)}</div>
+        ${grouped[c.label].map(n => `<span class="print-name">${escHtml(n)}</span>`).join('')}
       </div>`).join('');
 
   const dateStr = new Date().toLocaleDateString('en-PH', {
@@ -2756,7 +2759,7 @@ function printToday() {
 
   area.innerHTML = `
     <div class="print-header">
-      <h1>${PARISH_NAME}</h1>
+      <h1>${escHtml(PARISH_NAME)}</h1>
       <p>Mass Intentions &mdash; ${dateStr}</p>
     </div>
     <hr class="print-rule">
