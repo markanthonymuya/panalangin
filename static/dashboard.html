@@ -935,6 +935,8 @@ let CATEGORIES   = [];
 let CURRENT_SLUG = 'demo';
 let ROLE         = '';
 let LOCKED       = false;
+let PARISH_NAME  = '';
+let todayItems   = [];
 
 // ── Clean up old token keys from previous versions ──
 (function cleanOldStorage() {
@@ -1175,6 +1177,7 @@ async function loadToday() {
     );
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
+    todayItems = data;
     renderToday(data);
   } catch(e) {
     document.getElementById('today-body').innerHTML =
@@ -1555,6 +1558,7 @@ async function loadStatus() {
       document.getElementById('tab-btn-codes').style.display     = '';
       document.getElementById('parish-display').textContent      = 'Platform Administrator';
     } else {
+      PARISH_NAME = data.parish_name || '';
       document.getElementById('parish-display').textContent = data.parish_name || '';
     CURRENT_SLUG = data.slug || 'demo';
     if (data.dash_accent) applyDashAccent(data.dash_accent);
