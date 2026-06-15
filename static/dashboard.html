@@ -487,7 +487,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
     <!-- TODAY TAB -->
     <div id="tab-today" class="parish-only">
-      <div class="section-title" id="today-heading"></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.3rem">
+        <div class="section-title" id="today-heading"></div>
+        <button class="btn-print-today" id="btn-print-today" onclick="printToday()">Print as PDF</button>
+      </div>
       <div class="section-sub">All intentions active for today's Mass</div>
       <div id="today-body"></div>
     </div>
