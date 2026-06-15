@@ -1605,6 +1605,8 @@ async function loadStatus() {
     if (LOCKED && ROLE !== 'superadmin') {
       const addBtn = document.getElementById('tab-btn-add');
       if (addBtn) { addBtn.style.opacity = '.4'; addBtn.style.pointerEvents = 'none'; }
+      const printBtn = document.getElementById('btn-print-today');
+      if (printBtn) { printBtn.style.opacity = '.4'; printBtn.style.pointerEvents = 'none'; }
     }
 
     // Show superadmin tabs
