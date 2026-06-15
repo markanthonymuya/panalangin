@@ -379,6 +379,56 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 .history-row { display:flex; justify-content:space-between; font-size:12px;
                padding:5px 0; border-bottom:1px solid #f0ede7; color:var(--muted); }
 .history-row span { font-family:monospace; color:var(--text); }
+
+/* ── PRINT BUTTON ── */
+.btn-print-today {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--card);
+  cursor: pointer;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.btn-print-today:hover {
+  background: var(--accent2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── PRINT LAYOUT ── */
+@media print {
+  body > * { display: none !important; }
+  #print-area {
+    display: block !important;
+    font-family: Georgia, serif;
+    font-size: 11px;
+    color: #000;
+  }
+  .print-header { text-align: center; margin-bottom: 8px; }
+  .print-header h1 { font-size: 14px; font-weight: bold; margin: 0 0 2px; }
+  .print-header p  { font-size: 11px; margin: 0; }
+  .print-rule {
+    border: none; border-top: 1px solid #000;
+    margin: 6px 0 10px;
+  }
+  .print-columns {
+    column-count: 2;
+    column-gap: 2rem;
+  }
+  .print-cat-block {
+    break-inside: avoid;
+    margin-bottom: 10px;
+  }
+  .print-cat-label {
+    font-size: 10px; font-weight: bold;
+    letter-spacing: .12em; text-transform: uppercase;
+    border-bottom: 1px solid #000;
+    margin-bottom: 3px; padding-bottom: 2px;
+  }
+  .print-name { display: block; font-size: 11px; line-height: 1.5; }
+}
 </style>
 </head>
 <body>
