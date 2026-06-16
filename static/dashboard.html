@@ -231,14 +231,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 #trial-banner strong   { font-weight: 500; }
 #trial-banner a        { color: inherit; font-weight: 500; text-decoration: underline; cursor: pointer; }
 
-/* ── SWEEP BANNER ── */
-#sweep-banner {
-  display: none; padding: 10px 14px; font-size: 13px; border-radius: 6px;
-  margin-bottom: 1rem; background: #fff8e1; border: 1px solid #ffe082; color: #6d4c00;
-  align-items: center; gap: 10px;
-}
-#sweep-banner.visible { display: flex; }
-#sweep-banner strong  { font-weight: 500; }
 #btn-sweep {
   padding: 5px 14px; background: var(--danger); color: #fff; border: none;
   border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;
@@ -483,13 +475,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   </div>
 </div>
 
+<!-- ── LOADING OVERLAY (outside #app so it covers login screen too) ── -->
+<div id="loading-overlay" style="display:none">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--muted);letter-spacing:.04em">Loading…</div>
+</div>
+
 <!-- ── APP ── -->
 <div id="app">
-
-  <div id="loading-overlay">
-    <div class="spinner"></div>
-    <div style="font-size:13px;color:var(--muted);letter-spacing:.04em">Loading…</div>
-  </div>
 
   <div id="topbar">
     <a href="/" class="logo" style="text-decoration:none">✦ Panalangin</a>
@@ -585,16 +578,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     <div id="tab-manage" class="parish-only" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">
         <div class="section-title">Manage intentions</div>
-        <button id="btn-sweep" onclick="doSweep()" style="display:none">Auto-sweep</button>
+        <button id="btn-sweep" onclick="doSweep()">Sweep</button>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="section-sub" style="margin-bottom:0">View, edit, or delete encoded intentions</div>
-        <button onclick="simulateSweep()" id="btn-simulate-sweep"
-          style="background:none;border:none;font-size:11px;color:var(--muted);cursor:pointer;padding:2px 4px;text-decoration:underline;text-underline-offset:2px">
-          Preview sweep notification
-        </button>
-      </div>
-      <div id="sweep-banner" style="margin-top:.75rem"></div>
+      <div class="section-sub">View, edit, or delete encoded intentions</div>
       <div class="filter-row">
         <button class="filter-quick active" id="btn-today" onclick="setQuick('today')">Today</button>
         <button class="filter-quick"        id="btn-week"  onclick="setQuick('week')">This week</button>
@@ -1068,6 +1054,11 @@ function authHeaders() {
 }
 
 // ── Login ──
+function showOverlay() {
+  const ov = document.getElementById('loading-overlay');
+  if (ov) { ov.classList.remove('fade-out'); ov.style.display = 'flex'; }
+}
+
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
@@ -1076,6 +1067,7 @@ async function doLogin() {
     document.getElementById('login-error').textContent = 'Please enter your email and password.';
     return;
   }
+  showOverlay();
   const formData = new FormData();
   formData.append('username', email);
   formData.append('password', pass);
@@ -1093,6 +1085,8 @@ async function doLogin() {
     const payload = JSON.parse(atob(TOKEN.split('.')[1]));
     await bootApp(payload);
   } catch(e) {
+    const ov = document.getElementById('loading-overlay');
+    if (ov) ov.style.display = 'none';
     document.getElementById('login-error').textContent = e.message;
   }
 }
@@ -1216,6 +1210,7 @@ async function bootApp(payload) {
     const payload = JSON.parse(atob(stored.split('.')[1]));
     if (payload.exp * 1000 < Date.now()) { doLogout(); return; }
     TOKEN = stored;
+    showOverlay();
     await bootApp(payload);
   } catch(e) { doLogout(); }
 })();
@@ -1235,7 +1230,7 @@ function showTab(name) {
     const fn = b.getAttribute('onclick') || '';
     b.classList.toggle('active', fn.includes("'" + name + "'"));
   });
-  if (name === 'manage')   { setQuick(currentQuick || 'today'); updateSortHeaders(); loadSweepCount(); }
+  if (name === 'manage')   { setQuick(currentQuick || 'today'); updateSortHeaders(); }
   if (name === 'messages') { loadMyMessages(); }
   if (name === 'inbox')    { loadInbox('unread'); }
   if (name === 'payments') { loadPayments('pending'); }
@@ -1497,58 +1492,9 @@ function setWeekFilter() {
 function clearFilter() { setQuick('week'); }
 
 // ── Sweep ──
-let sweepSimulated = false;
-
-function showSweepBanner(n) {
-  const banner = document.getElementById('sweep-banner');
-  const btn    = document.getElementById('btn-sweep');
-  if (n > 0) {
-    banner.className = 'visible';
-    banner.innerHTML = `<strong>${n} intention${n === 1 ? '' : 's'}</strong> ${n === 1 ? 'has' : 'have'} been expired for over 2 months. Use <strong>Auto-sweep</strong> to permanently remove records older than 6 months.`;
-    if (btn) btn.style.display = '';
-  } else {
-    banner.className = '';
-    banner.innerHTML = '';
-    if (btn) btn.style.display = 'none';
-  }
-}
-
-async function loadSweepCount() {
-  sweepSimulated = false;
-  try {
-    const res = await fetch(`${API}/api/dashboard/intentions/sweep-count`, { headers: authHeaders() });
-    if (!res.ok) return;
-    const data = await res.json();
-    showSweepBanner(data.expired_two_months);
-  } catch(e) {}
-}
-
-function simulateSweep() {
-  sweepSimulated = true;
-  showSweepBanner(15);
-  const simBtn = document.getElementById('btn-simulate-sweep');
-  if (simBtn) { simBtn.textContent = 'Reset preview'; simBtn.onclick = resetSweepSimulation; }
-}
-
-function resetSweepSimulation() {
-  sweepSimulated = false;
-  showSweepBanner(0);
-  const simBtn = document.getElementById('btn-simulate-sweep');
-  if (simBtn) { simBtn.textContent = 'Preview sweep notification'; simBtn.onclick = simulateSweep; }
-}
-
 async function doSweep() {
-  if (sweepSimulated) {
-    const confirmed = confirm(
-      '[SIMULATION] Auto-sweep will permanently delete all intentions with an end date older than 6 months.\n\nThis cannot be undone. Proceed?'
-    );
-    if (!confirmed) return;
-    alert('[SIMULATION] Sweep complete. 15 intentions removed from the database.\n\n(No real data was deleted — this is a preview.)');
-    resetSweepSimulation();
-    return;
-  }
   const confirmed = confirm(
-    'Auto-sweep will permanently delete all intentions with an end date older than 6 months.\n\nThis cannot be undone. Proceed?'
+    'Sweep will permanently delete all intentions with an end date older than 2 months.\n\nThis cannot be undone. Proceed?'
   );
   if (!confirmed) return;
   const btn = document.getElementById('btn-sweep');
@@ -1560,7 +1506,6 @@ async function doSweep() {
     if (!res.ok) throw new Error('Sweep failed');
     const data = await res.json();
     alert(`Sweep complete. ${data.deleted} intention${data.deleted === 1 ? '' : 's'} removed from the database.`);
-    loadSweepCount();
     loadManage();
   } catch(e) {
     alert(e.message || 'Could not complete sweep.');

@@ -348,30 +348,16 @@ def list_categories(
 # ─────────────────────────────────────────────
 # SWEEP — expired intention cleanup
 # ─────────────────────────────────────────────
-@app.get("/api/dashboard/intentions/sweep-count")
-def get_sweep_count(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    today = date.today()
-    two_months_ago = today - timedelta(days=60)
-    count = db.query(models.Intention).filter(
-        models.Intention.parish_id == current_user.parish_id,
-        models.Intention.is_active == True,
-        models.Intention.end_date < two_months_ago
-    ).count()
-    return {"expired_two_months": count}
-
 @app.delete("/api/dashboard/intentions/sweep")
 def sweep_intentions(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     today = date.today()
-    six_months_ago = today - timedelta(days=180)
+    two_months_ago = today - timedelta(days=60)
     rows = db.query(models.Intention).filter(
         models.Intention.parish_id == current_user.parish_id,
-        models.Intention.end_date < six_months_ago
+        models.Intention.end_date < two_months_ago
     ).all()
     count = len(rows)
     for intention in rows:
