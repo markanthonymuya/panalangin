@@ -52,6 +52,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 /* ── APP SHELL ── */
 #app { display: none; }
 
+/* ── LOADING OVERLAY ── */
+#loading-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  transition: opacity .25s ease;
+}
+#loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 38px; height: 38px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ── TOPBAR ── */
 #topbar {
   background: #1a1814; color: #f0ead6;
@@ -212,6 +230,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 #trial-banner.locked   { display:flex; background:#fdf0ee; border-bottom: 1px solid #f5c4b3; color:#7a1a0e; }
 #trial-banner strong   { font-weight: 500; }
 #trial-banner a        { color: inherit; font-weight: 500; text-decoration: underline; cursor: pointer; }
+
+/* ── SWEEP BANNER ── */
+#sweep-banner {
+  display: none; padding: 10px 14px; font-size: 13px; border-radius: 6px;
+  margin-bottom: 1rem; background: #fff8e1; border: 1px solid #ffe082; color: #6d4c00;
+  align-items: center; gap: 10px;
+}
+#sweep-banner.visible { display: flex; }
+#sweep-banner strong  { font-weight: 500; }
+#btn-sweep {
+  padding: 5px 14px; background: var(--danger); color: #fff; border: none;
+  border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#btn-sweep:hover { opacity: .88; }
+#btn-sweep:disabled { opacity: .5; cursor: default; }
 
 /* ── SUPERADMIN TABS ── */
 .tab-divider { width: 1px; background: var(--border); margin: 6px 4px; }
@@ -453,6 +486,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 <!-- ── APP ── -->
 <div id="app">
 
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div style="font-size:13px;color:var(--muted);letter-spacing:.04em">Loading…</div>
+  </div>
+
   <div id="topbar">
     <a href="/" class="logo" style="text-decoration:none">✦ Panalangin</a>
     <span class="parish-name" id="parish-display"></span>
@@ -545,8 +583,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
     <!-- MANAGE TAB -->
     <div id="tab-manage" class="parish-only" style="display:none">
-      <div class="section-title">Manage intentions</div>
-      <div class="section-sub">View, edit, or delete encoded intentions</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">
+        <div class="section-title">Manage intentions</div>
+        <button id="btn-sweep" onclick="doSweep()" style="display:none">Auto-sweep</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="section-sub" style="margin-bottom:0">View, edit, or delete encoded intentions</div>
+        <button onclick="simulateSweep()" id="btn-simulate-sweep"
+          style="background:none;border:none;font-size:11px;color:var(--muted);cursor:pointer;padding:2px 4px;text-decoration:underline;text-underline-offset:2px">
+          Preview sweep notification
+        </button>
+      </div>
+      <div id="sweep-banner" style="margin-top:.75rem"></div>
       <div class="filter-row">
         <button class="filter-quick active" id="btn-today" onclick="setQuick('today')">Today</button>
         <button class="filter-quick"        id="btn-week"  onclick="setQuick('week')">This week</button>
@@ -1118,6 +1166,13 @@ async function bootApp(payload) {
   const jwtRole = payload.role || 'staff';
   ROLE = jwtRole;
 
+  function hideOverlay() {
+    const ov = document.getElementById('loading-overlay');
+    if (!ov) return;
+    ov.classList.add('fade-out');
+    setTimeout(() => { ov.style.display = 'none'; }, 280);
+  }
+
   if (jwtRole === 'superadmin') {
     // Hide parish tabs, show superadmin tabs
     document.querySelectorAll('.parish-only').forEach(el => el.style.display = 'none');
@@ -1127,6 +1182,7 @@ async function bootApp(payload) {
       if (el) el.style.display = '';
     });
     await loadStatus();
+    hideOverlay();
     if (!TOKEN) return;
     showTab('requests');
     loadUnreadCount();
@@ -1147,6 +1203,7 @@ async function bootApp(payload) {
     if (!TOKEN) return;
     await loadCategories();
     await loadToday();
+    hideOverlay();
     showTab('today');
   }
 }
@@ -1178,7 +1235,7 @@ function showTab(name) {
     const fn = b.getAttribute('onclick') || '';
     b.classList.toggle('active', fn.includes("'" + name + "'"));
   });
-  if (name === 'manage')   { setQuick(currentQuick || 'today'); updateSortHeaders(); }
+  if (name === 'manage')   { setQuick(currentQuick || 'today'); updateSortHeaders(); loadSweepCount(); }
   if (name === 'messages') { loadMyMessages(); }
   if (name === 'inbox')    { loadInbox('unread'); }
   if (name === 'payments') { loadPayments('pending'); }
@@ -1438,6 +1495,79 @@ function setWeekFilter() {
 }
 
 function clearFilter() { setQuick('week'); }
+
+// ── Sweep ──
+let sweepSimulated = false;
+
+function showSweepBanner(n) {
+  const banner = document.getElementById('sweep-banner');
+  const btn    = document.getElementById('btn-sweep');
+  if (n > 0) {
+    banner.className = 'visible';
+    banner.innerHTML = `<strong>${n} intention${n === 1 ? '' : 's'}</strong> ${n === 1 ? 'has' : 'have'} been expired for over 2 months. Use <strong>Auto-sweep</strong> to permanently remove records older than 6 months.`;
+    if (btn) btn.style.display = '';
+  } else {
+    banner.className = '';
+    banner.innerHTML = '';
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+async function loadSweepCount() {
+  sweepSimulated = false;
+  try {
+    const res = await fetch(`${API}/api/dashboard/intentions/sweep-count`, { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    showSweepBanner(data.expired_two_months);
+  } catch(e) {}
+}
+
+function simulateSweep() {
+  sweepSimulated = true;
+  showSweepBanner(15);
+  const simBtn = document.getElementById('btn-simulate-sweep');
+  if (simBtn) { simBtn.textContent = 'Reset preview'; simBtn.onclick = resetSweepSimulation; }
+}
+
+function resetSweepSimulation() {
+  sweepSimulated = false;
+  showSweepBanner(0);
+  const simBtn = document.getElementById('btn-simulate-sweep');
+  if (simBtn) { simBtn.textContent = 'Preview sweep notification'; simBtn.onclick = simulateSweep; }
+}
+
+async function doSweep() {
+  if (sweepSimulated) {
+    const confirmed = confirm(
+      '[SIMULATION] Auto-sweep will permanently delete all intentions with an end date older than 6 months.\n\nThis cannot be undone. Proceed?'
+    );
+    if (!confirmed) return;
+    alert('[SIMULATION] Sweep complete. 15 intentions removed from the database.\n\n(No real data was deleted — this is a preview.)');
+    resetSweepSimulation();
+    return;
+  }
+  const confirmed = confirm(
+    'Auto-sweep will permanently delete all intentions with an end date older than 6 months.\n\nThis cannot be undone. Proceed?'
+  );
+  if (!confirmed) return;
+  const btn = document.getElementById('btn-sweep');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/dashboard/intentions/sweep`, {
+      method: 'DELETE', headers: authHeaders()
+    });
+    if (!res.ok) throw new Error('Sweep failed');
+    const data = await res.json();
+    alert(`Sweep complete. ${data.deleted} intention${data.deleted === 1 ? '' : 's'} removed from the database.`);
+    loadSweepCount();
+    loadManage();
+  } catch(e) {
+    alert(e.message || 'Could not complete sweep.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
 
 let manageItems  = [];
 let sortCol      = 'name';
