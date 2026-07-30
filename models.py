@@ -1,4 +1,16 @@
-from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, ForeignKey, func, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -22,11 +34,23 @@ class Parish(Base):
     theme_label    = Column(String, default="#c9b97a")   # category label
     # Dashboard theme
     dash_accent    = Column(String, default="#2d5a3d")   # dashboard accent
+    display_interval_seconds = Column(Integer, default=5)
+    display_names_per_page   = Column(Integer, default=5)
+    display_columns          = Column(Integer, default=1)
+    display_bg_image         = Column(Text, nullable=True)  # validated data URL
+    display_bg_fit           = Column(String, default="fill")
+    display_font_family      = Column(String, default="Georgia")
+    display_font_size        = Column(Integer, default=0)   # 0 = responsive/automatic
+    display_font_bold        = Column(Boolean, default=False)
+    display_text_case        = Column(String, default="original")
 
     users       = relationship("User",      back_populates="parish", cascade="all, delete")
     categories  = relationship("Category",  back_populates="parish", cascade="all, delete",
                                order_by="Category.display_order")
     intentions   = relationship("Intention",   back_populates="parish", cascade="all, delete")
+    offering_requests = relationship(
+        "OfferingRequest", back_populates="parish", cascade="all, delete"
+    )
     access_codes = relationship("AccessCode", secondary="code_redemptions",
                                 back_populates="used_by")
 
@@ -61,6 +85,36 @@ class Category(Base):
                               cascade="all, delete")
 
 
+class OfferingRequest(Base):
+    """One submitted request containing one or more Mass intentions."""
+
+    __tablename__ = "offering_requests"
+    __table_args__ = (
+        UniqueConstraint(
+            "parish_id",
+            "legacy_source",
+            "legacy_id",
+            name="uq_offering_request_legacy_source",
+        ),
+    )
+
+    id            = Column(Integer, primary_key=True)
+    parish_id     = Column(
+        Integer, ForeignKey("parishes.id", ondelete="CASCADE"), nullable=False
+    )
+    legacy_source = Column(String, nullable=True)
+    legacy_id     = Column(Integer, nullable=True)
+    offered_by    = Column(String, nullable=False, default="")
+    start_date    = Column(Date, nullable=False)
+    end_date      = Column(Date, nullable=False)
+    created_at    = Column(DateTime, server_default=func.now())
+
+    parish = relationship("Parish", back_populates="offering_requests")
+    intentions = relationship(
+        "Intention", back_populates="offering_request", cascade="all, delete"
+    )
+
+
 class Intention(Base):
     __tablename__ = "intentions"
 
@@ -73,9 +127,46 @@ class Intention(Base):
     end_date    = Column(Date, nullable=False)
     is_active   = Column(Boolean, default=True)
     created_at  = Column(DateTime, server_default=func.now())
+    offering_request_id = Column(
+        Integer,
+        ForeignKey("offering_requests.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    legacy_source = Column(String, nullable=True)
+    legacy_id     = Column(Integer, nullable=True)
 
     parish   = relationship("Parish",   back_populates="intentions")
     category = relationship("Category", back_populates="intentions")
+    offering_request = relationship(
+        "OfferingRequest", back_populates="intentions"
+    )
+
+
+class MigrationReject(Base):
+    """Legacy rows retained for review when they cannot become active intentions."""
+
+    __tablename__ = "migration_rejects"
+    __table_args__ = (
+        UniqueConstraint(
+            "parish_id",
+            "legacy_source",
+            "entity_type",
+            "legacy_id",
+            name="uq_migration_reject_legacy_row",
+        ),
+    )
+
+    id            = Column(Integer, primary_key=True)
+    parish_id     = Column(
+        Integer, ForeignKey("parishes.id", ondelete="CASCADE"), nullable=False
+    )
+    legacy_source = Column(String, nullable=False)
+    entity_type   = Column(String, nullable=False)
+    legacy_id     = Column(Integer, nullable=False)
+    reason        = Column(String, nullable=False)
+    payload       = Column(JSON, nullable=False)
+    created_at    = Column(DateTime, server_default=func.now())
 
 
 class AccessCode(Base):

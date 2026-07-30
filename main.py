@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from datetime import date, datetime, timedelta
-import re, secrets, asyncio, json
+import re, secrets, asyncio, json, base64, binascii, hashlib
 from collections import defaultdict
 from typing import Optional
 from jose import JWTError, jwt
@@ -41,6 +41,7 @@ app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(os.path.
 # Auth config
 # ─────────────────────────────────────────────
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-to-a-long-random-string-before-deploying")
+SEED_DEMO = os.environ.get("SEED_DEMO", "").lower() in ("1", "true", "yes")
 ALGORITHM  = "HS256"
 TOKEN_EXPIRE_HOURS = 12
 
@@ -212,25 +213,7 @@ def sync_categories(db: Session):
     db.commit()
 
 with next(get_db()) as _db:
-    from sqlalchemy import text
-    try:
-        cat_count = _db.execute(text("SELECT COUNT(*) FROM categories")).scalar()
-    except Exception:
-        cat_count = 0
-    if cat_count == 0:
-        try:
-            _db.execute(text("DELETE FROM slug_change_logs"))
-            _db.execute(text("DELETE FROM code_redemptions"))
-            _db.execute(text("DELETE FROM access_codes"))
-            _db.execute(text("DELETE FROM intentions"))
-            _db.execute(text("DELETE FROM users"))
-            _db.execute(text("DELETE FROM categories"))
-            _db.execute(text("DELETE FROM parishes"))
-            _db.commit()
-        except Exception:
-            _db.rollback()
-        seed_demo(_db)
-    else:
+    if SEED_DEMO:
         seed_demo(_db)
     sync_categories(_db)
 
@@ -243,6 +226,17 @@ class IntentionCreate(BaseModel):
     category_id: int
     start_date:  date
     end_date:    date
+
+class IntentionRequestCreate(BaseModel):
+    names:       list[str]
+    offered_by:  str
+    category_id: int
+    start_date:  Optional[date] = None
+    end_date:    Optional[date] = None
+    birthday_dates: Optional[dict[str, date]] = None
+
+class RequestEndDateUpdate(BaseModel):
+    end_date: date
 
 class IntentionUpdate(IntentionCreate):
     pass
@@ -285,14 +279,6 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 @app.post("/auth/login", response_model=TokenResponse)
 def login_json(payload: LoginJSON, db: Session = Depends(get_db)):
     return do_login(payload.email, payload.password, db)
-
-# ─────────────────────────────────────────────
-# DEBUG ENDPOINT — remove after testing
-# ─────────────────────────────────────────────
-@app.get("/api/debug/categories")
-def debug_categories(db: Session = Depends(get_db)):
-    cats = db.query(models.Category).all()
-    return [{"id": c.id, "label": c.label, "parish_id": c.parish_id} for c in cats]
 
 # ─────────────────────────────────────────────
 # DASHBOARD API (requires login)
@@ -355,15 +341,267 @@ def sweep_intentions(
 ):
     today = date.today()
     two_months_ago = today - timedelta(days=60)
-    rows = db.query(models.Intention).filter(
+    expired = db.query(models.Intention).filter(
         models.Intention.parish_id == current_user.parish_id,
         models.Intention.end_date < two_months_ago
-    ).all()
-    count = len(rows)
-    for intention in rows:
-        db.delete(intention)
+    )
+    affected_request_ids = [
+        request_id
+        for (request_id,) in expired.with_entities(
+            models.Intention.offering_request_id
+        ).distinct().all()
+        if request_id is not None
+    ]
+    count = expired.delete(synchronize_session=False)
+
+    deleted_requests = 0
+    if affected_request_ids:
+        deleted_requests = db.query(models.OfferingRequest).filter(
+            models.OfferingRequest.parish_id == current_user.parish_id,
+            models.OfferingRequest.id.in_(affected_request_ids),
+            ~models.OfferingRequest.intentions.any(),
+        ).delete(synchronize_session=False)
+
     db.commit()
-    return {"deleted": count}
+    return {
+        "deleted": count,
+        "deleted_requests": deleted_requests,
+        "cutoff": two_months_ago.isoformat(),
+    }
+
+
+def get_parish_category(db: Session, parish_id: int, category_id: int):
+    category = db.query(models.Category).filter(
+        models.Category.id == category_id,
+        models.Category.parish_id == parish_id,
+        models.Category.is_active == True,
+    ).first()
+    if not category:
+        raise HTTPException(status_code=400, detail="Invalid category")
+    return category
+
+
+@app.post("/api/dashboard/intention-requests", status_code=201)
+def create_intention_request(
+    payload: IntentionRequestCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    names = [name.strip() for name in payload.names if name.strip()]
+    if not names:
+        raise HTTPException(status_code=400, detail="At least one name is required")
+    if len(names) > 500:
+        raise HTTPException(
+            status_code=400,
+            detail="A request cannot contain more than 500 intentions",
+        )
+    offered_by = payload.offered_by.strip()
+    if not offered_by:
+        raise HTTPException(status_code=400, detail="Offered by is required")
+    category = get_parish_category(
+        db, current_user.parish_id, payload.category_id
+    )
+
+    is_gift_of_life = category.label == "Gift of Life"
+    if is_gift_of_life:
+        birthday_dates = payload.birthday_dates or {}
+        missing_birthdays = [
+            name for name in names if name not in birthday_dates
+        ]
+        if missing_birthdays:
+            raise HTTPException(
+                status_code=400,
+                detail="A birthday date is required for every Gift of Life name",
+            )
+        request_start = min(birthday_dates[name] for name in names)
+        request_end = max(birthday_dates[name] for name in names)
+    else:
+        if payload.start_date is None or payload.end_date is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Start date and end date are required",
+            )
+        if payload.end_date < payload.start_date:
+            raise HTTPException(
+                status_code=400,
+                detail="End date must be on or after start date",
+            )
+        birthday_dates = {}
+        request_start = payload.start_date
+        request_end = payload.end_date
+
+    offering_request = models.OfferingRequest(
+        parish_id=current_user.parish_id,
+        offered_by=offered_by,
+        start_date=request_start,
+        end_date=request_end,
+    )
+    db.add(offering_request)
+    db.flush()
+
+    intentions = [
+        models.Intention(
+            parish_id=current_user.parish_id,
+            category_id=payload.category_id,
+            name=name,
+            offered_by=offered_by,
+            start_date=(
+                birthday_dates[name] if is_gift_of_life else request_start
+            ),
+            end_date=(
+                birthday_dates[name] if is_gift_of_life else request_end
+            ),
+            offering_request_id=offering_request.id,
+        )
+        for name in names
+    ]
+    db.add_all(intentions)
+    db.commit()
+    return {
+        "request_id": offering_request.id,
+        "created": len(intentions),
+        "message": "Intentions added",
+    }
+
+
+@app.get("/api/dashboard/intention-requests")
+def list_intention_requests(
+    offeror: str = "",
+    start: Optional[date] = None,
+    end: Optional[date] = None,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.OfferingRequest).filter(
+        models.OfferingRequest.parish_id == current_user.parish_id
+    )
+    if offeror.strip():
+        query = query.filter(
+            models.OfferingRequest.offered_by.ilike(
+                f"%{offeror.strip()}%"
+            )
+        )
+    if start:
+        query = query.filter(
+            models.OfferingRequest.intentions.any(
+                and_(
+                    models.Intention.is_active == True,
+                    models.Intention.end_date >= start,
+                )
+            )
+        )
+    if end:
+        query = query.filter(
+            models.OfferingRequest.intentions.any(
+                and_(
+                    models.Intention.is_active == True,
+                    models.Intention.start_date <= end,
+                )
+            )
+        )
+
+    requests = query.order_by(
+        models.OfferingRequest.created_at.desc(),
+        models.OfferingRequest.id.desc(),
+    ).limit(200).all()
+
+    result = []
+    for request in requests:
+        intentions = sorted(
+            (item for item in request.intentions if item.is_active),
+            key=lambda item: (item.start_date, item.name.lower()),
+        )
+        if not intentions:
+            continue
+        gift_count = sum(
+            item.category.label == "Gift of Life"
+            for item in intentions
+        )
+        range_intentions = [
+            item
+            for item in intentions
+            if item.category.label != "Gift of Life"
+        ]
+        result.append({
+            "id": request.id,
+            "offered_by": request.offered_by,
+            "start_date": min(
+                item.start_date for item in intentions
+            ).isoformat(),
+            "end_date": max(
+                item.end_date for item in intentions
+            ).isoformat(),
+            "extendable": bool(range_intentions),
+            "extendable_end_date": (
+                max(item.end_date for item in range_intentions).isoformat()
+                if range_intentions else None
+            ),
+            "gift_of_life_count": gift_count,
+            "intentions": [
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "category": item.category.label,
+                    "start_date": item.start_date.isoformat(),
+                    "end_date": item.end_date.isoformat(),
+                }
+                for item in intentions
+            ],
+        })
+    return result
+
+
+@app.put("/api/dashboard/intention-requests/{request_id}/end-date")
+def extend_intention_request(
+    request_id: int,
+    payload: RequestEndDateUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    offering_request = db.query(models.OfferingRequest).filter(
+        models.OfferingRequest.id == request_id,
+        models.OfferingRequest.parish_id == current_user.parish_id,
+    ).first()
+    if not offering_request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    active_intentions = [
+        item for item in offering_request.intentions if item.is_active
+    ]
+    extendable = [
+        item
+        for item in active_intentions
+        if item.category.label != "Gift of Life"
+    ]
+    if not extendable:
+        raise HTTPException(
+            status_code=400,
+            detail="Gift of Life intentions use individual dates and cannot be extended",
+        )
+    current_end = max(item.end_date for item in extendable)
+    if payload.end_date <= current_end:
+        raise HTTPException(
+            status_code=400,
+            detail="The new ending date must be later than the current ending date",
+        )
+    if any(payload.end_date < item.start_date for item in extendable):
+        raise HTTPException(
+            status_code=400,
+            detail="The new ending date cannot be before an intention start date",
+        )
+
+    for item in extendable:
+        item.end_date = payload.end_date
+    offering_request.end_date = max(
+        item.end_date for item in active_intentions
+    )
+    db.commit()
+    return {
+        "message": "Request ending date extended",
+        "updated": len(extendable),
+        "gift_of_life_unchanged": len(active_intentions) - len(extendable),
+        "end_date": payload.end_date.isoformat(),
+    }
 
 # Add new intention
 @app.post("/api/dashboard/intentions", status_code=201)
@@ -375,13 +613,29 @@ def create_intention(
 ):
     if payload.end_date < payload.start_date:
         raise HTTPException(status_code=400, detail="End date must be on or after start date")
+    get_parish_category(db, current_user.parish_id, payload.category_id)
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+    offered_by = payload.offered_by.strip()
+    if not offered_by:
+        raise HTTPException(status_code=400, detail="Offered by is required")
+    offering_request = models.OfferingRequest(
+        parish_id=current_user.parish_id,
+        offered_by=offered_by,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+    )
+    db.add(offering_request)
+    db.flush()
     intention = models.Intention(
         parish_id   = current_user.parish_id,
         category_id = payload.category_id,
-        name        = payload.name.strip(),
-        offered_by  = payload.offered_by.strip(),
+        name        = name,
+        offered_by  = offered_by,
         start_date  = payload.start_date,
         end_date    = payload.end_date,
+        offering_request_id = offering_request.id,
     )
     db.add(intention)
     db.commit()
@@ -406,8 +660,15 @@ def update_intention(
         raise HTTPException(status_code=404, detail="Intention not found")
     if payload.end_date < payload.start_date:
         raise HTTPException(status_code=400, detail="End date must be on or after start date")
-    intention.name        = payload.name.strip()
-    intention.offered_by  = payload.offered_by.strip()
+    get_parish_category(db, current_user.parish_id, payload.category_id)
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+    offered_by = payload.offered_by.strip()
+    if not offered_by:
+        raise HTTPException(status_code=400, detail="Offered by is required")
+    intention.name        = name
+    intention.offered_by  = offered_by
     intention.category_id = payload.category_id
     intention.start_date  = payload.start_date
     intention.end_date    = payload.end_date
@@ -460,6 +721,19 @@ def get_display_intentions(slug: str, db: Session = Depends(get_db)):
             "theme_text":   parish.theme_text   or "#f0ead6",
             "theme_accent": parish.theme_accent or "#c9b97a",
             "theme_label":  parish.theme_label  or "#c9b97a",
+            "display_interval_seconds": parish.display_interval_seconds or 5,
+            "display_names_per_page": parish.display_names_per_page or 5,
+            "display_columns": parish.display_columns or 1,
+            "display_bg_fit": parish.display_bg_fit or "fill",
+            "background_image_url": (
+                f"/api/{slug}/background-image?v="
+                f"{hashlib.sha256(parish.display_bg_image.encode()).hexdigest()[:12]}"
+                if parish.display_bg_image else None
+            ),
+            "display_font_family": parish.display_font_family or "Georgia",
+            "display_font_size": parish.display_font_size or 0,
+            "display_font_bold": bool(parish.display_font_bold),
+            "display_text_case": parish.display_text_case or "original",
             "categories":   []
         }
         for cat in categories:
@@ -491,6 +765,29 @@ def get_display_intentions(slug: str, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/{slug}/background-image")
+def get_display_background(slug: str, db: Session = Depends(get_db)):
+    parish = db.query(models.Parish).filter(
+        models.Parish.slug == slug, models.Parish.is_active == True
+    ).first()
+    if not parish or not parish.display_bg_image:
+        raise HTTPException(status_code=404, detail="Background image not found")
+    match = re.fullmatch(
+        r"data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)",
+        parish.display_bg_image,
+    )
+    if not match:
+        raise HTTPException(status_code=404, detail="Invalid background image")
+    try:
+        content = base64.b64decode(match.group(2), validate=True)
+    except (ValueError, binascii.Error):
+        raise HTTPException(status_code=404, detail="Invalid background image")
+    return Response(
+        content=content,
+        media_type=match.group(1),
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 # ─────────────────────────────────────────────
 # HELPERS
@@ -1501,6 +1798,22 @@ class ThemeUpdate(BaseModel):
     theme_accent:str
     theme_label: str
     dash_accent: str
+    display_interval_seconds: int = 5
+    display_names_per_page: int = 5
+    display_columns: int = 1
+    display_bg_fit: str = "fill"
+    background_image: Optional[str] = None
+    remove_background_image: bool = False
+    display_font_family: str = "Georgia"
+    display_font_size: int = 0
+    display_font_bold: bool = False
+    display_text_case: str = "original"
+
+DISPLAY_FONTS = {
+    "Georgia", "Arial", "Verdana", "Tahoma", "Trebuchet MS",
+    "Times New Roman", "Courier New", "Garamond", "Palatino Linotype",
+    "Arial Black",
+}
 
 @app.get("/api/dashboard/theme")
 def get_theme(
@@ -1516,6 +1829,20 @@ def get_theme(
         "theme_accent": parish.theme_accent or "#c9b97a",
         "theme_label":  parish.theme_label  or "#c9b97a",
         "dash_accent":  parish.dash_accent  or "#2d5a3d",
+        "display_interval_seconds": parish.display_interval_seconds or 5,
+        "display_names_per_page": parish.display_names_per_page or 5,
+        "display_columns": parish.display_columns or 1,
+        "display_bg_fit": parish.display_bg_fit or "fill",
+        "has_background_image": bool(parish.display_bg_image),
+        "background_image_url": (
+            f"/api/{parish.slug}/background-image?v="
+            f"{hashlib.sha256(parish.display_bg_image.encode()).hexdigest()[:12]}"
+            if parish.display_bg_image else None
+        ),
+        "display_font_family": parish.display_font_family or "Georgia",
+        "display_font_size": parish.display_font_size or 0,
+        "display_font_bold": bool(parish.display_font_bold),
+        "display_text_case": parish.display_text_case or "original",
     }
 
 @app.put("/api/dashboard/theme")
@@ -1532,6 +1859,44 @@ def update_theme(
     parish.theme_accent = payload.theme_accent
     parish.theme_label  = payload.theme_label
     parish.dash_accent  = payload.dash_accent
+    if not 2 <= payload.display_interval_seconds <= 60:
+        raise HTTPException(status_code=422, detail="Display timing must be 2 to 60 seconds")
+    if not 4 <= payload.display_names_per_page <= 20:
+        raise HTTPException(status_code=422, detail="Names per display must be 4 to 20")
+    if payload.display_columns not in (1, 2):
+        raise HTTPException(status_code=422, detail="Columns must be 1 or 2")
+    if payload.display_bg_fit not in {"fill", "stretch", "tile", "center", "span"}:
+        raise HTTPException(status_code=422, detail="Invalid background image fit")
+    if payload.display_font_family not in DISPLAY_FONTS:
+        raise HTTPException(status_code=422, detail="Invalid font")
+    if payload.display_font_size != 0 and not 20 <= payload.display_font_size <= 120:
+        raise HTTPException(status_code=422, detail="Font size must be Auto or 20 to 120")
+    if payload.display_text_case not in {"original", "upper", "lower", "proper"}:
+        raise HTTPException(status_code=422, detail="Invalid text case")
+    if payload.background_image:
+        match = re.fullmatch(
+            r"data:image/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=\s]+)",
+            payload.background_image,
+        )
+        if not match:
+            raise HTTPException(status_code=422, detail="Use a JPEG, PNG, or WebP image")
+        try:
+            decoded = base64.b64decode(match.group(1), validate=True)
+        except (ValueError, binascii.Error):
+            raise HTTPException(status_code=422, detail="Invalid background image")
+        if len(decoded) > 1_500_000:
+            raise HTTPException(status_code=422, detail="Background image must be 1.5 MB or smaller")
+        parish.display_bg_image = payload.background_image
+    elif payload.remove_background_image:
+        parish.display_bg_image = None
+    parish.display_interval_seconds = payload.display_interval_seconds
+    parish.display_names_per_page = payload.display_names_per_page
+    parish.display_columns = payload.display_columns
+    parish.display_bg_fit = payload.display_bg_fit
+    parish.display_font_family = payload.display_font_family
+    parish.display_font_size = payload.display_font_size
+    parish.display_font_bold = payload.display_font_bold
+    parish.display_text_case = payload.display_text_case
     db.commit()
     return {"message": "Theme updated"}
 
