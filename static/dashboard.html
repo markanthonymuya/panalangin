@@ -542,12 +542,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         <div class="form-row form-dates" id="shared-date-range">
           <div>
             <label>Start date</label>
-            <input type="date" id="f-start">
+            <input type="date" id="f-start" onchange="handleStartDateChange()">
           </div>
           <div>
             <label>End date</label>
             <input type="date" id="f-end">
           </div>
+        </div>
+        <div id="mass-card-date-note"
+          style="display:none;color:#2d7a46;font-size:11px;font-weight:500;margin-top:5px">
+          ✓ End date automatically set to 6 months.
         </div>
         <div id="birthday-date-help"
           style="display:none;font-size:12px;color:var(--muted);margin-top:8px">
@@ -1437,15 +1441,49 @@ function handleCategoryChange() {
   const giftOfLife = isGiftOfLifeSelected();
   const sharedDates = document.getElementById('shared-date-range');
   const birthdayHelp = document.getElementById('birthday-date-help');
+  const massCardNote = document.getElementById('mass-card-date-note');
+  const massCard = selectedCategoryLabel() === 'Mass Card';
   if (sharedDates) sharedDates.style.display = giftOfLife ? 'none' : 'flex';
   if (birthdayHelp) birthdayHelp.style.display = giftOfLife ? 'block' : 'none';
+  if (massCardNote) massCardNote.style.display = massCard ? 'block' : 'none';
+  if (massCard) {
+    const startInput = document.getElementById('f-start');
+    if (!startInput.value) startInput.value = toDateStr(new Date());
+    document.getElementById('f-end').value =
+      addMonthsClamped(startInput.value, 6);
+  }
   renderNameTags();
+}
+
+function handleStartDateChange() {
+  if (selectedCategoryLabel() !== 'Mass Card') return;
+  const start = document.getElementById('f-start').value;
+  if (start) {
+    document.getElementById('f-end').value = addMonthsClamped(start, 6);
+  }
+}
+
+function addMonthsClamped(dateString, months) {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const targetIndex = month - 1 + months;
+  const targetYear = year + Math.floor(targetIndex / 12);
+  const targetMonth = ((targetIndex % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  const targetDay = Math.min(day, lastDay);
+  return [
+    String(targetYear).padStart(4, '0'),
+    String(targetMonth + 1).padStart(2, '0'),
+    String(targetDay).padStart(2, '0')
+  ].join('-');
 }
 
 function setDefaultDates() {
   const today = toDateStr(new Date());
   document.getElementById('f-start').value = today;
-  document.getElementById('f-end').value   = today;
+  document.getElementById('f-end').value =
+    selectedCategoryLabel() === 'Mass Card'
+      ? addMonthsClamped(today, 6)
+      : today;
 }
 
 function addNameToList() {
