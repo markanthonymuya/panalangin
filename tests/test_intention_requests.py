@@ -77,6 +77,21 @@ class IntentionRequestTests(unittest.TestCase):
                 display_font_size=42,
                 display_font_bold=True,
                 display_text_case="upper",
+                display_parish_name="Christ the King Parish",
+                display_parish_color="#336699",
+                display_parish_font_family="Verdana",
+                display_parish_font_size=18,
+                display_parish_font_bold=True,
+                display_parish_text_case="proper",
+                display_title_font_family="Tahoma",
+                display_title_font_size=22,
+                display_title_font_bold=True,
+                display_title_text_case="lower",
+                display_transition_color="#112233",
+                display_transition_font_family="Garamond",
+                display_transition_font_size=36,
+                display_transition_font_bold=True,
+                display_transition_text_case="proper",
             ),
             current_user=self.ctkp_user,
             db=self.db,
@@ -89,6 +104,18 @@ class IntentionRequestTests(unittest.TestCase):
         self.assertEqual(self.ctkp.display_bg_image, image_data)
         self.assertEqual(self.ctkp.display_font_family, "Arial")
         self.assertTrue(self.ctkp.display_font_bold)
+        self.assertEqual(self.ctkp.display_parish_name, "Christ the King Parish")
+        self.assertEqual(self.ctkp.display_parish_color, "#336699")
+        self.assertEqual(self.ctkp.display_parish_font_family, "Verdana")
+        self.assertEqual(self.ctkp.display_parish_font_size, 18)
+        self.assertTrue(self.ctkp.display_parish_font_bold)
+        self.assertEqual(self.ctkp.display_title_font_family, "Tahoma")
+        self.assertEqual(self.ctkp.display_title_font_size, 22)
+        self.assertTrue(self.ctkp.display_title_font_bold)
+        self.assertEqual(self.ctkp.display_transition_color, "#112233")
+        self.assertEqual(self.ctkp.display_transition_font_family, "Garamond")
+        self.assertEqual(self.ctkp.display_transition_font_size, 36)
+        self.assertTrue(self.ctkp.display_transition_font_bold)
 
     def test_display_settings_reject_less_than_four_names(self):
         with self.assertRaises(HTTPException) as raised:

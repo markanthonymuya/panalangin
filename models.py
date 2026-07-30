@@ -43,6 +43,21 @@ class Parish(Base):
     display_font_size        = Column(Integer, default=0)   # 0 = responsive/automatic
     display_font_bold        = Column(Boolean, default=False)
     display_text_case        = Column(String, default="original")
+    display_parish_color       = Column(String, default="#8a7f6a")
+    display_parish_name        = Column(String, default="Parish Name")
+    display_parish_font_family = Column(String, default="Georgia")
+    display_parish_font_size   = Column(Integer, default=20)
+    display_parish_font_bold   = Column(Boolean, default=True)
+    display_parish_text_case   = Column(String, default="upper")
+    display_title_font_family  = Column(String, default="Georgia")
+    display_title_font_size    = Column(Integer, default=30)
+    display_title_font_bold    = Column(Boolean, default=True)
+    display_title_text_case    = Column(String, default="upper")
+    display_transition_color       = Column(String, default="#c9b97a")
+    display_transition_font_family = Column(String, default="Georgia")
+    display_transition_font_size   = Column(Integer, default=0)
+    display_transition_font_bold   = Column(Boolean, default=False)
+    display_transition_text_case   = Column(String, default="upper")
 
     users       = relationship("User",      back_populates="parish", cascade="all, delete")
     categories  = relationship("Category",  back_populates="parish", cascade="all, delete",

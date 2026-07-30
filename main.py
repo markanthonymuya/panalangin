@@ -789,7 +789,7 @@ def get_display_intentions(slug: str, db: Session = Depends(get_db)):
         ).order_by(models.Category.display_order).all()
 
         result = {
-            "parish":       parish.name,
+            "parish":       parish.display_parish_name or "Parish Name",
             "theme_bg":     parish.theme_bg     or "#080c18",
             "theme_text":   parish.theme_text   or "#f0ead6",
             "theme_accent": parish.theme_accent or "#c9b97a",
@@ -806,7 +806,30 @@ def get_display_intentions(slug: str, db: Session = Depends(get_db)):
             "display_font_family": parish.display_font_family or "Georgia",
             "display_font_size": parish.display_font_size or 0,
             "display_font_bold": bool(parish.display_font_bold),
-            "display_text_case": parish.display_text_case or "original",
+            "display_text_case": (
+                "proper" if parish.display_text_case == "sentence"
+                else parish.display_text_case or "original"
+            ),
+            "display_parish_color": parish.display_parish_color or "#8a7f6a",
+            "display_parish_font_family": parish.display_parish_font_family or "Georgia",
+            "display_parish_font_size": parish.display_parish_font_size or 20,
+            "display_parish_font_bold": (
+                True if parish.display_parish_font_bold is None
+                else bool(parish.display_parish_font_bold)
+            ),
+            "display_parish_text_case": parish.display_parish_text_case or "upper",
+            "display_title_font_family": parish.display_title_font_family or "Georgia",
+            "display_title_font_size": parish.display_title_font_size or 30,
+            "display_title_font_bold": (
+                True if parish.display_title_font_bold is None
+                else bool(parish.display_title_font_bold)
+            ),
+            "display_title_text_case": parish.display_title_text_case or "upper",
+            "display_transition_color": parish.display_transition_color or "#c9b97a",
+            "display_transition_font_family": parish.display_transition_font_family or "Georgia",
+            "display_transition_font_size": parish.display_transition_font_size or 0,
+            "display_transition_font_bold": bool(parish.display_transition_font_bold),
+            "display_transition_text_case": parish.display_transition_text_case or "upper",
             "categories":   []
         }
         for cat in categories:
@@ -1881,6 +1904,21 @@ class ThemeUpdate(BaseModel):
     display_font_size: int = 0
     display_font_bold: bool = False
     display_text_case: str = "original"
+    display_parish_name: str = "Parish Name"
+    display_parish_color: str = "#8a7f6a"
+    display_parish_font_family: str = "Georgia"
+    display_parish_font_size: int = 20
+    display_parish_font_bold: bool = True
+    display_parish_text_case: str = "upper"
+    display_title_font_family: str = "Georgia"
+    display_title_font_size: int = 30
+    display_title_font_bold: bool = True
+    display_title_text_case: str = "upper"
+    display_transition_color: str = "#c9b97a"
+    display_transition_font_family: str = "Georgia"
+    display_transition_font_size: int = 0
+    display_transition_font_bold: bool = False
+    display_transition_text_case: str = "upper"
 
 DISPLAY_FONTS = {
     "Georgia", "Arial", "Verdana", "Tahoma", "Trebuchet MS",
@@ -1915,7 +1953,31 @@ def get_theme(
         "display_font_family": parish.display_font_family or "Georgia",
         "display_font_size": parish.display_font_size or 0,
         "display_font_bold": bool(parish.display_font_bold),
-        "display_text_case": parish.display_text_case or "original",
+        "display_text_case": (
+            "proper" if parish.display_text_case == "sentence"
+            else parish.display_text_case or "original"
+        ),
+        "display_parish_name": parish.display_parish_name or "Parish Name",
+        "display_parish_color": parish.display_parish_color or "#8a7f6a",
+        "display_parish_font_family": parish.display_parish_font_family or "Georgia",
+        "display_parish_font_size": parish.display_parish_font_size or 20,
+        "display_parish_font_bold": (
+            True if parish.display_parish_font_bold is None
+            else bool(parish.display_parish_font_bold)
+        ),
+        "display_parish_text_case": parish.display_parish_text_case or "upper",
+        "display_title_font_family": parish.display_title_font_family or "Georgia",
+        "display_title_font_size": parish.display_title_font_size or 30,
+        "display_title_font_bold": (
+            True if parish.display_title_font_bold is None
+            else bool(parish.display_title_font_bold)
+        ),
+        "display_title_text_case": parish.display_title_text_case or "upper",
+        "display_transition_color": parish.display_transition_color or "#c9b97a",
+        "display_transition_font_family": parish.display_transition_font_family or "Georgia",
+        "display_transition_font_size": parish.display_transition_font_size or 0,
+        "display_transition_font_bold": bool(parish.display_transition_font_bold),
+        "display_transition_text_case": parish.display_transition_text_case or "upper",
     }
 
 @app.put("/api/dashboard/theme")
@@ -1946,6 +2008,31 @@ def update_theme(
         raise HTTPException(status_code=422, detail="Font size must be Auto or 20 to 120")
     if payload.display_text_case not in {"original", "upper", "lower", "proper"}:
         raise HTTPException(status_code=422, detail="Invalid text case")
+    display_parish_name = payload.display_parish_name.strip() or "Parish Name"
+    if len(display_parish_name) > 120:
+        raise HTTPException(status_code=422, detail="Parish display name must be 120 characters or fewer")
+    if not re.fullmatch(r"#[0-9a-fA-F]{6}", payload.display_parish_color):
+        raise HTTPException(status_code=422, detail="Invalid parish name color")
+    if payload.display_parish_font_family not in DISPLAY_FONTS:
+        raise HTTPException(status_code=422, detail="Invalid parish name font")
+    if payload.display_title_font_family not in DISPLAY_FONTS:
+        raise HTTPException(status_code=422, detail="Invalid intention title font")
+    if payload.display_parish_font_size != 0 and not 8 <= payload.display_parish_font_size <= 72:
+        raise HTTPException(status_code=422, detail="Parish name size must be Auto or 8 to 72")
+    if payload.display_title_font_size != 0 and not 8 <= payload.display_title_font_size <= 72:
+        raise HTTPException(status_code=422, detail="Intention title size must be Auto or 8 to 72")
+    if payload.display_parish_text_case not in {"original", "upper", "lower", "proper"}:
+        raise HTTPException(status_code=422, detail="Invalid parish name text case")
+    if payload.display_title_text_case not in {"original", "upper", "lower", "proper"}:
+        raise HTTPException(status_code=422, detail="Invalid intention title text case")
+    if not re.fullmatch(r"#[0-9a-fA-F]{6}", payload.display_transition_color):
+        raise HTTPException(status_code=422, detail="Invalid transition text color")
+    if payload.display_transition_font_family not in DISPLAY_FONTS:
+        raise HTTPException(status_code=422, detail="Invalid transition text font")
+    if payload.display_transition_font_size != 0 and not 8 <= payload.display_transition_font_size <= 120:
+        raise HTTPException(status_code=422, detail="Transition text size must be Auto or 8 to 120")
+    if payload.display_transition_text_case not in {"original", "upper", "lower", "proper"}:
+        raise HTTPException(status_code=422, detail="Invalid transition text case")
     if payload.background_image:
         match = re.fullmatch(
             r"data:image/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=\s]+)",
@@ -1970,6 +2057,21 @@ def update_theme(
     parish.display_font_size = payload.display_font_size
     parish.display_font_bold = payload.display_font_bold
     parish.display_text_case = payload.display_text_case
+    parish.display_parish_name = display_parish_name
+    parish.display_parish_color = payload.display_parish_color
+    parish.display_parish_font_family = payload.display_parish_font_family
+    parish.display_parish_font_size = payload.display_parish_font_size
+    parish.display_parish_font_bold = payload.display_parish_font_bold
+    parish.display_parish_text_case = payload.display_parish_text_case
+    parish.display_title_font_family = payload.display_title_font_family
+    parish.display_title_font_size = payload.display_title_font_size
+    parish.display_title_font_bold = payload.display_title_font_bold
+    parish.display_title_text_case = payload.display_title_text_case
+    parish.display_transition_color = payload.display_transition_color
+    parish.display_transition_font_family = payload.display_transition_font_family
+    parish.display_transition_font_size = payload.display_transition_font_size
+    parish.display_transition_font_bold = payload.display_transition_font_bold
+    parish.display_transition_text_case = payload.display_transition_text_case
     db.commit()
     return {"message": "Theme updated"}
 
@@ -2073,4 +2175,10 @@ def display_page(slug: str):
         raise HTTPException(status_code=404, detail="Display page not found")
     html = html.replace("const PARISH_SLUG = 'demo'",
                         f"const PARISH_SLUG = '{slug}'")
-    return HTMLResponse(content=html)
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )

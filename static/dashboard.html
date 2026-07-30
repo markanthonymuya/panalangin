@@ -682,7 +682,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             </div>
           </div>
           <div class="form-row">
-            <label>Category label color</label>
+            <label>Intention title color</label>
             <div style="display:flex;gap:8px;align-items:center">
               <input type="color" id="t-label" value="#c9b97a"
                 oninput="previewTheme()" style="width:48px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer">
@@ -714,6 +714,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Display preview</div>
             <div id="theme-preview" style="border-radius:8px;padding:14px;text-align:center;
               font-family:Georgia,serif;transition:all 0.3s">
+              <div id="prev-parish" style="font-size:8px;letter-spacing:2px;margin-bottom:3px">
+                Christ the King Parish
+              </div>
               <div id="prev-cross" style="font-size:14px;margin-bottom:4px">✦</div>
               <div id="prev-cat"
                 style="font-size:9px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px">
@@ -722,6 +725,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
               <div id="prev-name1" style="font-size:15px;margin-bottom:3px">Reyes Family</div>
               <div id="prev-name2" style="font-size:15px;margin-bottom:3px">Santos Family</div>
               <div id="prev-name3" style="font-size:15px;opacity:0.7">dela Cruz Family</div>
+              <div style="border-top:1px solid rgba(255,255,255,.16);margin:10px 25% 5px"></div>
+              <div id="prev-transition" style="font-size:12px;letter-spacing:2px">THANKSGIVING</div>
             </div>
           </div>
 
@@ -796,14 +801,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             <label><input type="checkbox" id="t-bold" onchange="previewTheme()"> Bold names</label>
           </div>
           <div class="form-row">
-            <label>Font size (0 = automatic)</label>
+            <label>Font size (0 = Default — automatic)</label>
             <input type="number" id="t-font-size" min="0" max="120" value="0"
               oninput="previewTheme()">
           </div>
           <div class="form-row">
             <label>Font</label>
             <select id="t-font" onchange="previewTheme()">
-              <option>Georgia</option><option>Arial</option><option>Verdana</option>
+              <option value="Georgia">Georgia (Default)</option><option>Arial</option><option>Verdana</option>
               <option>Tahoma</option><option>Trebuchet MS</option>
               <option>Times New Roman</option><option>Courier New</option>
               <option>Garamond</option><option>Palatino Linotype</option>
@@ -813,10 +818,128 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           <div class="form-row">
             <label>Letter case</label>
             <select id="t-text-case" onchange="previewTheme()">
-              <option value="original">As entered</option>
+              <option value="original">As entered (Default)</option>
               <option value="upper">UPPER CASE</option>
               <option value="lower">lower case</option>
               <option value="proper">Proper Case</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">Parish Name on display</div>
+          <div class="form-row">
+            <label>Displayed text</label>
+            <input type="text" id="t-parish-name" maxlength="120" value="Parish Name"
+              placeholder="Parish name shown on the display" oninput="previewTheme()">
+            <div style="font-size:11px;color:var(--muted);margin-top:5px">
+              This changes only the display heading, not the parish account name.
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Color</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" id="t-parish-color" value="#8a7f6a"
+                oninput="previewTheme()" style="width:48px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer">
+              <input type="text" id="t-parish-color-hex" value="#8a7f6a"
+                oninput="syncColor('t-parish-color','t-parish-color-hex')"
+                style="flex:1;font-family:monospace" maxlength="7">
+            </div>
+          </div>
+          <div class="form-row">
+            <label><input type="checkbox" id="t-parish-bold" onchange="previewTheme()" checked> Bold parish name</label>
+          </div>
+          <div class="form-row">
+            <label>Font size (Default = 20px)</label>
+            <input type="number" id="t-parish-size" min="0" max="72" value="20" oninput="previewTheme()">
+          </div>
+          <div class="form-row">
+            <label>Font</label>
+            <select id="t-parish-font" onchange="previewTheme()">
+              <option value="Georgia">Georgia (Default)</option><option>Arial</option><option>Verdana</option>
+              <option>Tahoma</option><option>Trebuchet MS</option><option>Times New Roman</option>
+              <option>Courier New</option><option>Garamond</option>
+              <option>Palatino Linotype</option><option>Arial Black</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Letter case</label>
+            <select id="t-parish-case" onchange="previewTheme()">
+              <option value="original">As entered</option><option value="upper">UPPER CASE (Default)</option>
+              <option value="lower">lower case</option><option value="proper">Proper Case</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">Intention Title on display</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
+            Applies to headings such as Thanksgiving, Souls, and Gift of Life.
+          </div>
+          <div class="form-row">
+            <label><input type="checkbox" id="t-title-bold" onchange="previewTheme()" checked> Bold intention title</label>
+          </div>
+          <div class="form-row">
+            <label>Font size (Default = 30px)</label>
+            <input type="number" id="t-title-size" min="0" max="72" value="30" oninput="previewTheme()">
+          </div>
+          <div class="form-row">
+            <label>Font</label>
+            <select id="t-title-font" onchange="previewTheme()">
+              <option value="Georgia">Georgia (Default)</option><option>Arial</option><option>Verdana</option>
+              <option>Tahoma</option><option>Trebuchet MS</option><option>Times New Roman</option>
+              <option>Courier New</option><option>Garamond</option>
+              <option>Palatino Linotype</option><option>Arial Black</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Letter case</label>
+            <select id="t-title-case" onchange="previewTheme()">
+              <option value="original">As entered</option><option value="upper">UPPER CASE (Default)</option>
+              <option value="lower">lower case</option><option value="proper">Proper Case</option>
+            </select>
+          </div>
+          <div style="font-size:11px;color:var(--muted)">
+            Title color is controlled by “Intention title color” above.
+          </div>
+        </div>
+
+        <div class="form-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">Transition Text on display</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
+            Styles the intention title briefly shown while changing from one group to another.
+          </div>
+          <div class="form-row">
+            <label>Color</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" id="t-transition-color" value="#c9b97a"
+                oninput="previewTheme()" style="width:48px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border);cursor:pointer">
+              <input type="text" id="t-transition-color-hex" value="#c9b97a"
+                oninput="syncColor('t-transition-color','t-transition-color-hex')"
+                style="flex:1;font-family:monospace" maxlength="7">
+            </div>
+          </div>
+          <div class="form-row">
+            <label><input type="checkbox" id="t-transition-bold" onchange="previewTheme()"> Bold transition text</label>
+          </div>
+          <div class="form-row">
+            <label>Font size (0 = Default — automatic)</label>
+            <input type="number" id="t-transition-size" min="0" max="120" value="0" oninput="previewTheme()">
+          </div>
+          <div class="form-row">
+            <label>Font</label>
+            <select id="t-transition-font" onchange="previewTheme()">
+              <option value="Georgia">Georgia (Default)</option><option>Arial</option><option>Verdana</option>
+              <option>Tahoma</option><option>Trebuchet MS</option><option>Times New Roman</option>
+              <option>Courier New</option><option>Garamond</option>
+              <option>Palatino Linotype</option><option>Arial Black</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Letter case</label>
+            <select id="t-transition-case" onchange="previewTheme()">
+              <option value="original">As entered</option><option value="upper">UPPER CASE (Default)</option>
+              <option value="lower">lower case</option><option value="proper">Proper Case</option>
             </select>
           </div>
         </div>
@@ -825,7 +948,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       <div style="margin-top:1.2rem;max-width:640px">
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
           <button id="theme-save-btn" class="btn-submit" onclick="saveTheme()">Save theme</button>
-          <button onclick="applyPreset('classic')"
+          <button onclick="resetThemeDefaults()"
             style="padding:9px 18px;border:1px solid var(--border);border-radius:6px;
             background:var(--card);font-size:13px;cursor:pointer">Reset to default</button>
         </div>
@@ -3052,8 +3175,7 @@ function removeBackgroundImage() {
   previewTheme();
 }
 
-function previewCase(text) {
-  const mode = document.getElementById('t-text-case').value;
+function formatDisplayCase(text, mode) {
   if (mode === 'upper') return text.toLocaleUpperCase();
   if (mode === 'lower') return text.toLocaleLowerCase();
   if (mode === 'proper') {
@@ -3061,6 +3183,10 @@ function previewCase(text) {
       word === 'and' ? word : word.charAt(0).toLocaleUpperCase() + word.slice(1));
   }
   return text;
+}
+
+function previewCase(text) {
+  return formatDisplayCase(text, document.getElementById('t-text-case').value);
 }
 
 function applyPreset(name) {
@@ -3076,6 +3202,30 @@ function applyPreset(name) {
   document.getElementById('t-label-hex').value    = p.label;
   document.getElementById('t-dash').value         = p.dash;
   document.getElementById('t-dash-hex').value     = p.dash;
+  previewTheme();
+}
+
+function resetThemeDefaults() {
+  applyPreset('classic');
+  document.getElementById('t-font').value = 'Georgia';
+  document.getElementById('t-font-size').value = 0;
+  document.getElementById('t-bold').checked = false;
+  document.getElementById('t-text-case').value = 'original';
+  document.getElementById('t-parish-font').value = 'Georgia';
+  document.getElementById('t-parish-name').value = 'Parish Name';
+  document.getElementById('t-parish-size').value = 20;
+  document.getElementById('t-parish-bold').checked = true;
+  document.getElementById('t-parish-case').value = 'upper';
+  document.getElementById('t-title-font').value = 'Georgia';
+  document.getElementById('t-title-size').value = 30;
+  document.getElementById('t-title-bold').checked = true;
+  document.getElementById('t-title-case').value = 'upper';
+  document.getElementById('t-transition-color').value = '#c9b97a';
+  document.getElementById('t-transition-color-hex').value = '#c9b97a';
+  document.getElementById('t-transition-font').value = 'Georgia';
+  document.getElementById('t-transition-size').value = 0;
+  document.getElementById('t-transition-bold').checked = false;
+  document.getElementById('t-transition-case').value = 'upper';
   previewTheme();
 }
 
@@ -3109,7 +3259,42 @@ function previewTheme() {
   prev.style.backgroundRepeat = bgStyle[1];
   prev.style.backgroundPosition = bgStyle[2];
   document.getElementById('prev-cross').style.color = accent;
-  document.getElementById('prev-cat').style.color   = label;
+  const prevParish = document.getElementById('prev-parish');
+  const parishFont = document.getElementById('t-parish-font').value;
+  const parishSize = Number(document.getElementById('t-parish-size').value);
+  prevParish.textContent = formatDisplayCase(
+    document.getElementById('t-parish-name').value || 'Parish Name',
+    document.getElementById('t-parish-case').value
+  );
+  prevParish.style.color = document.getElementById('t-parish-color').value;
+  prevParish.style.fontFamily = `"${parishFont}", serif`;
+  prevParish.style.fontWeight = document.getElementById('t-parish-bold').checked ? '700' : '400';
+  prevParish.style.fontSize = parishSize ? Math.min(parishSize, 24) + 'px' : '8px';
+
+  const prevTitle = document.getElementById('prev-cat');
+  const titleFont = document.getElementById('t-title-font').value;
+  const titleSize = Number(document.getElementById('t-title-size').value);
+  prevTitle.textContent = formatDisplayCase(
+    'Thanksgiving',
+    document.getElementById('t-title-case').value
+  );
+  prevTitle.style.color = label;
+  prevTitle.style.fontFamily = `"${titleFont}", serif`;
+  prevTitle.style.fontWeight = document.getElementById('t-title-bold').checked ? '700' : '400';
+  prevTitle.style.fontSize = titleSize ? Math.min(titleSize, 28) + 'px' : '9px';
+  const prevTransition = document.getElementById('prev-transition');
+  const transitionSize = Number(document.getElementById('t-transition-size').value);
+  prevTransition.textContent = formatDisplayCase(
+    'Thanksgiving',
+    document.getElementById('t-transition-case').value
+  );
+  prevTransition.style.color = document.getElementById('t-transition-color').value;
+  prevTransition.style.fontFamily =
+    `"${document.getElementById('t-transition-font').value}", serif`;
+  prevTransition.style.fontWeight =
+    document.getElementById('t-transition-bold').checked ? '700' : '400';
+  prevTransition.style.fontSize =
+    transitionSize ? Math.min(transitionSize, 32) + 'px' : '12px';
   document.getElementById('prev-name1').style.color = text;
   document.getElementById('prev-name2').style.color = text;
   document.getElementById('prev-name3').style.color = text;
@@ -3153,6 +3338,23 @@ async function loadTheme() {
     document.getElementById('t-font-size').value  = data.display_font_size;
     document.getElementById('t-bold').checked     = data.display_font_bold;
     document.getElementById('t-text-case').value  = data.display_text_case;
+    document.getElementById('t-parish-name').value = data.display_parish_name;
+    document.getElementById('t-parish-color').value = data.display_parish_color;
+    document.getElementById('t-parish-color-hex').value = data.display_parish_color;
+    document.getElementById('t-parish-font').value = data.display_parish_font_family;
+    document.getElementById('t-parish-size').value = data.display_parish_font_size;
+    document.getElementById('t-parish-bold').checked = data.display_parish_font_bold;
+    document.getElementById('t-parish-case').value = data.display_parish_text_case;
+    document.getElementById('t-title-font').value = data.display_title_font_family;
+    document.getElementById('t-title-size').value = data.display_title_font_size;
+    document.getElementById('t-title-bold').checked = data.display_title_font_bold;
+    document.getElementById('t-title-case').value = data.display_title_text_case;
+    document.getElementById('t-transition-color').value = data.display_transition_color;
+    document.getElementById('t-transition-color-hex').value = data.display_transition_color;
+    document.getElementById('t-transition-font').value = data.display_transition_font_family;
+    document.getElementById('t-transition-size').value = data.display_transition_font_size;
+    document.getElementById('t-transition-bold').checked = data.display_transition_font_bold;
+    document.getElementById('t-transition-case').value = data.display_transition_text_case;
     savedBackgroundImageUrl = data.background_image_url;
     pendingBackgroundImage = null;
     removeSavedBackgroundImage = false;
@@ -3190,6 +3392,21 @@ async function saveTheme() {
         display_font_size: Number(document.getElementById('t-font-size').value),
         display_font_bold: document.getElementById('t-bold').checked,
         display_text_case: document.getElementById('t-text-case').value,
+        display_parish_name: document.getElementById('t-parish-name').value,
+        display_parish_color: document.getElementById('t-parish-color').value,
+        display_parish_font_family: document.getElementById('t-parish-font').value,
+        display_parish_font_size: Number(document.getElementById('t-parish-size').value),
+        display_parish_font_bold: document.getElementById('t-parish-bold').checked,
+        display_parish_text_case: document.getElementById('t-parish-case').value,
+        display_title_font_family: document.getElementById('t-title-font').value,
+        display_title_font_size: Number(document.getElementById('t-title-size').value),
+        display_title_font_bold: document.getElementById('t-title-bold').checked,
+        display_title_text_case: document.getElementById('t-title-case').value,
+        display_transition_color: document.getElementById('t-transition-color').value,
+        display_transition_font_family: document.getElementById('t-transition-font').value,
+        display_transition_font_size: Number(document.getElementById('t-transition-size').value),
+        display_transition_font_bold: document.getElementById('t-transition-bold').checked,
+        display_transition_text_case: document.getElementById('t-transition-case').value,
       })
     });
     if (!res.ok) throw new Error();
@@ -3220,6 +3437,18 @@ function toDateStr(d) {
 function fmtDate(s) {
   return new Date(s + 'T00:00:00').toLocaleDateString('en-PH',
     { month:'short', day:'numeric', year:'numeric' });
+}
+
+if ('serviceWorker' in navigator) {
+  let serviceWorkerRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (serviceWorkerRefreshing) return;
+    serviceWorkerRefreshing = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.register('/static/sw.js', { updateViaCache: 'none' })
+    .then(registration => registration.update())
+    .catch(()=>{});
 }
 function esc(s) { return (s || '').replace(/'/g, "\'"); }
 function escHtml(s) {

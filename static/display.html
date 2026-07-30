@@ -43,8 +43,9 @@ html, body {
 }
 #parish-name {
   font-size: clamp(11px, 1.4vw, 18px);
-  letter-spacing: 0.25em; text-transform: uppercase;
-  color: var(--text-dim); font-weight: 400;
+  letter-spacing: 0.25em;
+  color: var(--parish-color, var(--text-dim));
+  font-weight: var(--parish-weight, 400);
 }
 #cross {
   font-size: clamp(14px, 1.8vw, 22px);
@@ -52,8 +53,9 @@ html, body {
 }
 #category-label {
   font-size: clamp(10px, 1.1vw, 15px);
-  letter-spacing: 0.35em; text-transform: uppercase;
+  letter-spacing: 0.35em;
   color: var(--gold); margin-top: 0.5vh;
+  font-weight: var(--title-weight, 400);
 }
 
 /* ── NAMES AREA ── */
@@ -149,7 +151,7 @@ html, body {
 }
 #wipe-cat-text {
   font-size: clamp(18px, 4vw, 56px);
-  letter-spacing: 0.3em; text-transform: uppercase;
+  letter-spacing: 0.3em;
   color: var(--wipe-text); font-weight: 400;
   opacity: 0; transition: opacity 0.2s 0.2s;
 }
@@ -403,9 +405,8 @@ function configureNameLayout() {
   return true;
 }
 
-function displayName(value) {
+function formatDisplayText(value, mode) {
   const text = String(value || '');
-  const mode = (data && data.display_text_case) || 'original';
   if (mode === 'upper') return text.toLocaleUpperCase();
   if (mode === 'lower') return text.toLocaleLowerCase();
   if (mode === 'proper') {
@@ -413,6 +414,22 @@ function displayName(value) {
       word === 'and' ? word : word.charAt(0).toLocaleUpperCase() + word.slice(1));
   }
   return text;
+}
+
+function displayName(value) {
+  return formatDisplayText(value, (data && data.display_text_case) || 'original');
+}
+
+function displayParishName(value) {
+  return formatDisplayText(value, (data && data.display_parish_text_case) || 'upper');
+}
+
+function displayTitle(value) {
+  return formatDisplayText(value, (data && data.display_title_text_case) || 'upper');
+}
+
+function displayTransition(value) {
+  return formatDisplayText(value, (data && data.display_transition_text_case) || 'upper');
 }
 
 // ── Connection status ──
@@ -425,7 +442,7 @@ function setConn(state, msg) {
 // ── Paint names ──
 function paintNames(slice) {
   const cat = data.categories[catIdx];
-  categoryEl.textContent = cat ? cat.label : '';
+  categoryEl.textContent = cat ? displayTitle(cat.label) : '';
   nameEls.forEach((el, i) => {
     el.classList.remove('visible', 'empty');
     if (slice[i]) {
@@ -477,7 +494,7 @@ function transitionWipe(slice) {
 
   // catIdx is already the NEW category — show its label on the wipe panel
   const newCat = data.categories[catIdx];
-  wipeCat.textContent = newCat ? newCat.label : '';
+  wipeCat.textContent = newCat ? displayTransition(newCat.label) : '';
 
   // Step 1: sweep panel IN — hides old names
   wipePanel.className = '';
@@ -487,7 +504,7 @@ function transitionWipe(slice) {
   setTimeout(() => {
     hideNames();
     // Update header to new category AFTER old names are hidden
-    categoryEl.textContent = newCat ? newCat.label : '';
+    categoryEl.textContent = newCat ? displayTitle(newCat.label) : '';
     buildDots();
     // Pre-load names into slots (not visible yet)
     nameEls.forEach((el, i) => {
@@ -590,6 +607,19 @@ function applyTheme(d) {
     (Number(d.display_interval_seconds) || 5) * 1000));
   root.style.setProperty('--name-weight', d.display_font_bold ? '700' : '400');
   document.body.style.fontFamily = `"${d.display_font_family || 'Georgia'}", serif`;
+  root.style.setProperty('--parish-color', d.display_parish_color || '#8a7f6a');
+  root.style.setProperty('--parish-weight', d.display_parish_font_bold ? '700' : '400');
+  root.style.setProperty('--title-weight', d.display_title_font_bold ? '700' : '400');
+  parishEl.style.fontFamily = `"${d.display_parish_font_family || 'Georgia'}", serif`;
+  parishEl.style.fontSize = Number(d.display_parish_font_size)
+    ? `${d.display_parish_font_size}px` : '';
+  categoryEl.style.fontFamily = `"${d.display_title_font_family || 'Georgia'}", serif`;
+  categoryEl.style.fontSize = Number(d.display_title_font_size)
+    ? `${d.display_title_font_size}px` : '';
+  wipeCat.style.fontFamily = `"${d.display_transition_font_family || 'Georgia'}", serif`;
+  wipeCat.style.fontWeight = d.display_transition_font_bold ? '700' : '400';
+  wipeCat.style.fontSize = Number(d.display_transition_font_size)
+    ? `${d.display_transition_font_size}px` : '';
 
   const image = d.background_image_url;
   document.body.style.backgroundImage = image ? `url("${image}")` : 'none';
@@ -610,7 +640,8 @@ function applyTheme(d) {
   root.style.setProperty('--bg2', wipeBg);
 
   // Auto-contrast: use dark text on light wipe panels
-  const wipeText = isLightColor(wipeBg) ? '#1a1814' : label;
+  const wipeText = d.display_transition_color ||
+    (isLightColor(wipeBg) ? '#1a1814' : label);
   root.style.setProperty('--wipe-text', wipeText);
 }
 
@@ -628,7 +659,7 @@ function applyData(incoming, fromCache) {
     // ── First load: set data, reset rotation, start ticker ──
     hasLoaded = true;
     data = incoming;
-    parishEl.textContent = data.parish || '';
+    parishEl.textContent = displayParishName(data.parish || '');
     applyTheme(data);
     configureNameLayout();
     catIdx  = 0;
@@ -641,7 +672,7 @@ function applyData(incoming, fromCache) {
                          ? data.categories[catIdx].label : null;
 
     data = incoming;
-    parishEl.textContent = data.parish || '';
+    parishEl.textContent = displayParishName(data.parish || '');
     applyTheme(data);
     const layoutChanged = configureNameLayout();
 
@@ -765,7 +796,15 @@ window.addEventListener('resize', calcFontSize);
 
 // ── Service Worker ──
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+  let serviceWorkerRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (serviceWorkerRefreshing) return;
+    serviceWorkerRefreshing = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.register('/static/sw.js', { updateViaCache: 'none' })
+    .then(registration => registration.update())
+    .catch(()=>{});
 }
 
 // ── Polling — checks for updates every 10 seconds ──

@@ -1,52 +1,60 @@
-const CACHE   = 'intentions-v2';
-const OFFLINE = ['/static/display.html', '/static/dashboard.html'];
+const CACHE = 'intentions-v3';
+const OFFLINE_DISPLAY = '/static/display.html';
 
-self.addEventListener('install', e => {
-  e.waitUntil(
+self.addEventListener('install', event => {
+  event.waitUntil(
     caches.open(CACHE)
-      .then(c => Promise.allSettled(OFFLINE.map(url => c.add(url))))
+      .then(cache => cache.add(OFFLINE_DISPLAY))
       .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
+self.addEventListener('activate', event => {
+  event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+        keys.filter(key => key !== CACHE).map(key => caches.delete(key))
       ))
       .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await fetch(request, {cache: 'no-store'});
+    if (response && response.ok && request.method === 'GET') {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    return (await cache.match(request)) ||
+      (await cache.match(OFFLINE_DISPLAY)) ||
+      new Response('Offline', {status: 503});
+  }
+}
 
-  // Never intercept API calls — let them go to network directly
-  if (url.pathname.startsWith('/api/')) {
-    e.respondWith(
-      fetch(e.request).catch(() =>
-        new Response(JSON.stringify({categories:[]}),
-          { status: 200, headers: {'Content-Type':'application/json'} })
-      )
-    );
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
+
+  // API data should never be cached by the service worker.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
-  // Never intercept favicon — let server handle it
   if (url.pathname === '/favicon.ico') return;
 
-  // For everything else: cache first, network fallback
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (res && res.status === 200 && e.request.method === 'GET') {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => caches.match('/static/display.html'));
-    })
-  );
+  // Always ask the server for application code first. Cached HTML is only an
+  // offline fallback, preventing old deployments from persisting in browsers.
+  if (
+    event.request.mode === 'navigate' ||
+    event.request.destination === 'document' ||
+    url.pathname.endsWith('.html') ||
+    url.pathname === '/dashboard' ||
+    url.pathname.endsWith('/display')
+  ) {
+    event.respondWith(networkFirst(event.request));
+  }
 });

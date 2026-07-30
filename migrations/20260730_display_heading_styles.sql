@@ -1,0 +1,15 @@
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_parish_color VARCHAR DEFAULT '#8a7f6a';
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_parish_name VARCHAR DEFAULT 'Parish Name';
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_parish_font_family VARCHAR DEFAULT 'Georgia';
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_parish_font_size INTEGER DEFAULT 20;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_parish_font_bold BOOLEAN DEFAULT TRUE;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_parish_text_case VARCHAR DEFAULT 'upper';
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_title_font_family VARCHAR DEFAULT 'Georgia';
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_title_font_size INTEGER DEFAULT 30;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_title_font_bold BOOLEAN DEFAULT TRUE;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_title_text_case VARCHAR DEFAULT 'upper';
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_transition_color VARCHAR DEFAULT '#c9b97a';
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_transition_font_family VARCHAR DEFAULT 'Georgia';
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_transition_font_size INTEGER DEFAULT 0;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_transition_font_bold BOOLEAN DEFAULT FALSE;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_transition_text_case VARCHAR DEFAULT 'upper';
