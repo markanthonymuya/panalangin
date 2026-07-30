@@ -3,8 +3,8 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request, Form, Back
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy import and_, or_
 from datetime import date, datetime, timedelta
 import re, secrets, asyncio, json, base64, binascii, hashlib
 from collections import defaultdict
@@ -466,21 +466,35 @@ def create_intention_request(
 
 @app.get("/api/dashboard/intention-requests")
 def list_intention_requests(
-    offeror: str = "",
+    q: str = "",
     start: Optional[date] = None,
     end: Optional[date] = None,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(models.OfferingRequest).filter(
+    search = " ".join(q.strip().split())
+    if len(search) < 2:
+        return []
+
+    pattern = f"%{search}%"
+    query = db.query(models.OfferingRequest).options(
+        selectinload(models.OfferingRequest.intentions).joinedload(
+            models.Intention.category
+        )
+    ).filter(
         models.OfferingRequest.parish_id == current_user.parish_id
     )
-    if offeror.strip():
-        query = query.filter(
-            models.OfferingRequest.offered_by.ilike(
-                f"%{offeror.strip()}%"
-            )
+    query = query.filter(
+        or_(
+            models.OfferingRequest.offered_by.ilike(pattern),
+            models.OfferingRequest.intentions.any(
+                and_(
+                    models.Intention.is_active == True,
+                    models.Intention.name.ilike(pattern),
+                )
+            ),
         )
+    )
     if start:
         query = query.filter(
             models.OfferingRequest.intentions.any(
@@ -500,10 +514,61 @@ def list_intention_requests(
             )
         )
 
-    requests = query.order_by(
+    candidates = query.order_by(
         models.OfferingRequest.created_at.desc(),
         models.OfferingRequest.id.desc(),
-    ).limit(200).all()
+    ).limit(100).all()
+
+    search_lower = search.lower()
+
+    def match_rank(request):
+        offeror = (request.offered_by or "").strip().lower()
+        intention_names = [
+            item.name.strip().lower()
+            for item in request.intentions
+            if item.is_active
+        ]
+        if offeror == search_lower:
+            return 0
+        if offeror.startswith(search_lower):
+            return 1
+        if any(word.startswith(search_lower) for word in offeror.split()):
+            return 2
+        if search_lower in offeror:
+            return 3
+        if any(name == search_lower for name in intention_names):
+            return 4
+        if any(name.startswith(search_lower) for name in intention_names):
+            return 5
+        if any(
+            word.startswith(search_lower)
+            for name in intention_names
+            for word in name.split()
+        ):
+            return 6
+        return 7
+
+    def match_distance(request):
+        values = [(request.offered_by or "").strip().lower()]
+        values.extend(
+            item.name.strip().lower()
+            for item in request.intentions
+            if item.is_active
+        )
+        matching = [value for value in values if search_lower in value]
+        return min(
+            (len(value) - len(search_lower) for value in matching),
+            default=10_000,
+        )
+
+    requests = sorted(
+        candidates,
+        key=lambda request: (
+            match_rank(request),
+            match_distance(request),
+            -request.id,
+        ),
+    )[:20]
 
     result = []
     for request in requests:
@@ -522,6 +587,12 @@ def list_intention_requests(
             for item in intentions
             if item.category.label != "Gift of Life"
         ]
+        offeror_match = search_lower in (request.offered_by or "").lower()
+        matched_intention_names = [
+            item.name
+            for item in intentions
+            if search_lower in item.name.lower()
+        ]
         result.append({
             "id": request.id,
             "offered_by": request.offered_by,
@@ -537,6 +608,8 @@ def list_intention_requests(
                 if range_intentions else None
             ),
             "gift_of_life_count": gift_count,
+            "match_source": "offeror" if offeror_match else "intention",
+            "matched_intention_names": matched_intention_names[:3],
             "intentions": [
                 {
                     "id": item.id,
