@@ -58,7 +58,7 @@ html, body {
 
 /* ── NAMES AREA ── */
 #names-area {
-  display: flex; flex-direction: column;
+  display: grid;
   align-items: center; justify-content: center;
   width: 100%; height: 100%;
   position: relative; z-index: 2;
@@ -68,7 +68,7 @@ html, body {
   width: 100%; text-align: center; padding: 0 2vw;
 }
 .name-text {
-  display: block; font-weight: 400; color: var(--text);
+  display: block; font-weight: var(--name-weight, 400); color: var(--text);
   letter-spacing: 0.04em; line-height: 1.15;
   font-size: var(--name-fs, 5vh);
   white-space: nowrap; overflow: hidden;
@@ -333,7 +333,7 @@ const API_BASE    = '/api';
 const FETCH_URL   = () => `${API_BASE || '/api'}/${PARISH_SLUG}/intentions`;
 // ─────────────────────────────────────────────
 
-const ROTATE_MS   = 5000;
+let rotateMs      = 5000;
 const SYNC_MS     = 3 * 60 * 1000;
 const STORAGE_KEY = 'intentions_' + PARISH_SLUG;
 const ETAG_KEY    = 'intentions_etag_' + PARISH_SLUG;
@@ -347,6 +347,7 @@ let timerTick  = 0;
 let tickHandle = null;
 let animLock   = false;
 let hasLoaded  = false;  // true after first successful data load
+let layoutSignature = '';
 
 // ── DOM refs ──
 const parishEl   = document.getElementById('parish-name');
@@ -357,7 +358,7 @@ const timerBar   = document.getElementById('timer-bar');
 const connDot    = document.getElementById('conn-dot');
 const connText   = document.getElementById('conn-text');
 const namesArea  = document.getElementById('names-area');
-const nameEls    = [0,1,2,3,4].map(i => document.getElementById('n' + i));
+let nameEls      = [0,1,2,3,4].map(i => document.getElementById('n' + i));
 const wipePanel  = document.getElementById('wipe-panel');
 const wipeCat    = document.getElementById('wipe-cat-text');
 const emptyState = document.getElementById('empty-state');
@@ -367,14 +368,51 @@ const emptySub   = document.getElementById('empty-sub');
 // ── Sizing ──
 function calcFontSize() {
   const areaH = namesArea.clientHeight;
-  const slotH = Math.floor(areaH / 5);
+  const count = Math.max(4, Number(data && data.display_names_per_page) || 5);
+  const columns = Number(data && data.display_columns) === 2 ? 2 : 1;
+  const rows = Math.ceil(count / columns);
+  const slotH = Math.floor(areaH / rows);
   const byH   = Math.floor(slotH * 0.55);
-  const byW   = Math.floor(window.innerWidth * 0.072);
-  const fs    = Math.min(byH, byW, 88);
+  const byW   = Math.floor(window.innerWidth * (columns === 2 ? 0.04 : 0.072));
+  const configured = Number(data && data.display_font_size) || 0;
+  const fs    = configured || Math.min(byH, byW, 88);
   document.documentElement.style.setProperty('--name-fs', fs + 'px');
   document.querySelectorAll('.name-slot').forEach(s => {
     s.style.height = slotH + 'px';
   });
+}
+
+function configureNameLayout() {
+  const count = Math.max(4, Math.min(20, Number(data && data.display_names_per_page) || 5));
+  const columns = Number(data && data.display_columns) === 2 ? 2 : 1;
+  const signature = `${count}:${columns}`;
+  if (signature === layoutSignature) {
+    calcFontSize();
+    return false;
+  }
+  layoutSignature = signature;
+  const rows = Math.ceil(count / columns);
+  namesArea.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+  namesArea.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+  namesArea.style.gridAutoFlow = columns === 2 ? 'column' : 'row';
+  namesArea.innerHTML = Array.from({length: count}, (_, i) =>
+    `<div class="name-slot"><span class="name-text" id="n${i}"></span></div>`
+  ).join('');
+  nameEls = Array.from({length: count}, (_, i) => document.getElementById('n' + i));
+  calcFontSize();
+  return true;
+}
+
+function displayName(value) {
+  const text = String(value || '');
+  const mode = (data && data.display_text_case) || 'original';
+  if (mode === 'upper') return text.toLocaleUpperCase();
+  if (mode === 'lower') return text.toLocaleLowerCase();
+  if (mode === 'proper') {
+    return text.toLocaleLowerCase().replace(/\p{L}+/gu, word =>
+      word === 'and' ? word : word.charAt(0).toLocaleUpperCase() + word.slice(1));
+  }
+  return text;
 }
 
 // ── Connection status ──
@@ -391,7 +429,7 @@ function paintNames(slice) {
   nameEls.forEach((el, i) => {
     el.classList.remove('visible', 'empty');
     if (slice[i]) {
-      el.textContent = slice[i].name;
+      el.textContent = displayName(slice[i].name);
     } else {
       el.textContent = '';
       el.classList.add('empty');
@@ -455,7 +493,7 @@ function transitionWipe(slice) {
     nameEls.forEach((el, i) => {
       el.classList.remove('visible', 'empty');
       if (slice[i]) {
-        el.textContent = slice[i].name;
+        el.textContent = displayName(slice[i].name);
       } else {
         el.textContent = '';
         el.classList.add('empty');
@@ -463,11 +501,11 @@ function transitionWipe(slice) {
     });
   }, 300);
 
-  // Step 3: pause on new category name for 5 seconds, then sweep OUT
+  const wipePauseMs = Math.min(rotateMs, 5000);
   setTimeout(() => {
     wipePanel.classList.remove('sweep-in');
     wipePanel.classList.add('sweep-out');
-  }, 5000);
+  }, wipePauseMs);
 
   // Step 4: reveal names as panel exits
   setTimeout(() => {
@@ -477,7 +515,7 @@ function transitionWipe(slice) {
     wipePanel.className = '';
     resumeTicker();
     animLock = false;
-  }, 5350);
+  }, wipePauseMs + 350);
 }
 
 // ── Advance ──
@@ -485,7 +523,8 @@ function currentSlice() {
   if (!data || !data.categories.length) return [];
   const cat = data.categories[catIdx];
   if (!cat) return [];
-  return cat.intentions.slice(pageIdx * 5, pageIdx * 5 + 5);
+  const pageSize = Math.max(4, Number(data.display_names_per_page) || 5);
+  return cat.intentions.slice(pageIdx * pageSize, pageIdx * pageSize + pageSize);
 }
 
 function advance() {
@@ -496,7 +535,7 @@ function advance() {
   if (!cat) return;
 
   // Total pages needed for this category
-  const totalPages = Math.ceil(cat.intentions.length / 5) || 1;
+  const totalPages = Math.ceil(cat.intentions.length / (Number(data.display_names_per_page) || 5)) || 1;
 
   if (pageIdx < totalPages - 1) {
     // More pages in this category — stay, show next page
@@ -513,9 +552,9 @@ function advance() {
 // ── Timer ──
 function tick() {
   timerTick += TICK_MS;
-  const pct = Math.max(0, 100 - (timerTick / ROTATE_MS) * 100);
+  const pct = Math.max(0, 100 - (timerTick / rotateMs) * 100);
   timerBar.style.width = pct.toFixed(1) + '%';
-  if (timerTick >= ROTATE_MS) { timerTick = 0; advance(); }
+  if (timerTick >= rotateMs) { timerTick = 0; advance(); }
 }
 function startTicker()  { if (tickHandle) clearInterval(tickHandle); timerTick = 0; tickHandle = setInterval(tick, TICK_MS); }
 function pauseTicker()  { clearInterval(tickHandle); tickHandle = null; timerBar.style.width = '100%'; timerTick = 0; }
@@ -547,6 +586,24 @@ function applyTheme(d) {
   root.style.setProperty('--text', text);
   root.style.setProperty('--gold', label);
   document.body.style.background = bg;
+  rotateMs = Math.max(2000, Math.min(60000,
+    (Number(d.display_interval_seconds) || 5) * 1000));
+  root.style.setProperty('--name-weight', d.display_font_bold ? '700' : '400');
+  document.body.style.fontFamily = `"${d.display_font_family || 'Georgia'}", serif`;
+
+  const image = d.background_image_url;
+  document.body.style.backgroundImage = image ? `url("${image}")` : 'none';
+  const fit = d.display_bg_fit || 'fill';
+  const styles = {
+    fill: ['cover', 'no-repeat', 'center'],
+    stretch: ['100% 100%', 'no-repeat', 'center'],
+    tile: ['auto', 'repeat', 'left top'],
+    center: ['auto', 'no-repeat', 'center'],
+    span: ['100% auto', 'no-repeat', 'center'],
+  }[fit] || ['cover', 'no-repeat', 'center'];
+  document.body.style.backgroundSize = styles[0];
+  document.body.style.backgroundRepeat = styles[1];
+  document.body.style.backgroundPosition = styles[2];
 
   // Wipe panel: slightly darker variant of theme bg
   const wipeBg = darkenHex(bg, 0.18);
@@ -573,6 +630,7 @@ function applyData(incoming, fromCache) {
     data = incoming;
     parishEl.textContent = data.parish || '';
     applyTheme(data);
+    configureNameLayout();
     catIdx  = 0;
     pageIdx = 0;
     renderCurrent();
@@ -585,6 +643,7 @@ function applyData(incoming, fromCache) {
     data = incoming;
     parishEl.textContent = data.parish || '';
     applyTheme(data);
+    const layoutChanged = configureNameLayout();
 
     if (!data.categories || !data.categories.length) {
       showEmpty('No intentions encoded for today.',
@@ -598,7 +657,8 @@ function applyData(incoming, fromCache) {
       if (sameIdx !== -1) {
         catIdx = sameIdx;
         // Clamp pageIdx to valid range for this category
-        const total = Math.ceil(data.categories[catIdx].intentions.length / 5) || 1;
+        const total = Math.ceil(data.categories[catIdx].intentions.length /
+          (Number(data.display_names_per_page) || 5)) || 1;
         if (pageIdx >= total) pageIdx = 0;
       } else {
         // Category no longer exists — reset gracefully
@@ -609,6 +669,7 @@ function applyData(incoming, fromCache) {
       catIdx  = Math.min(catIdx, data.categories.length - 1);
       pageIdx = 0;
     }
+    if (layoutChanged) revealNames(currentSlice());
     // Rotation continues naturally — no restart needed
   }
 }
@@ -622,7 +683,8 @@ function renderCurrent() {
   emptyState.classList.remove('show');
   // Ensure catIdx is valid
   if (catIdx >= data.categories.length) catIdx = 0;
-  if (pageIdx >= Math.ceil((data.categories[catIdx].intentions.length || 1) / 5)) pageIdx = 0;
+  if (pageIdx >= Math.ceil((data.categories[catIdx].intentions.length || 1) /
+      (Number(data.display_names_per_page) || 5))) pageIdx = 0;
   revealNames(currentSlice());
   if (!tickHandle) startTicker();
 }

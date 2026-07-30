@@ -537,9 +537,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         </div>
         <div class="form-row">
           <label>Intention type</label>
-          <select id="f-cat"></select>
+          <select id="f-cat" onchange="handleCategoryChange()"></select>
         </div>
-        <div class="form-row form-dates">
+        <div class="form-row form-dates" id="shared-date-range">
           <div>
             <label>Start date</label>
             <input type="date" id="f-start">
@@ -548,6 +548,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             <label>End date</label>
             <input type="date" id="f-end">
           </div>
+        </div>
+        <div id="birthday-date-help"
+          style="display:none;font-size:12px;color:var(--muted);margin-top:8px">
+          Enter one birthday date beside each name. Each Gift of Life intention
+          will be active only on that exact date.
         </div>
 
         <div style="margin-top:1.2rem">
@@ -599,9 +604,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         <button onclick="navMonth(1)">Next &#8594;</button>
       </div>
       <div class="search-row">
-        <input type="text" id="search-input" placeholder="Search by name or offeror..." oninput="renderManageFiltered()">
-        <button onclick="document.getElementById('search-input').value=''; renderManageFiltered()">Clear</button>
+        <input type="text" id="search-input" placeholder="Search by name or offeror..." oninput="handleManageSearch()">
+        <button onclick="document.getElementById('search-input').value=''; handleManageSearch()">Clear</button>
       </div>
+      <div style="margin:1rem 0 .6rem">
+        <div style="font-size:13px;font-weight:500">Requests by offeror</div>
+        <div style="font-size:11px;color:var(--muted)">
+          Search an offeror to view all intentions in a request and extend its shared ending date.
+          Gift of Life dates remain unchanged.
+        </div>
+      </div>
+      <div id="request-groups"></div>
       <table class="intentions-table">
         <thead>
           <tr>
@@ -723,6 +736,84 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
               <button class="preset-btn" onclick="applyPreset('forest')"
                 style="background:#0a1a0d;color:#7ec88a">Forest</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;max-width:960px;margin-top:1.5rem">
+        <div class="form-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">Display timing and layout</div>
+          <div class="form-row">
+            <label>Seconds per display</label>
+            <input type="number" id="t-seconds" min="2" max="60" value="5">
+          </div>
+          <div class="form-row">
+            <label>Names per display</label>
+            <input type="number" id="t-count" min="4" max="20" value="5">
+          </div>
+          <div class="form-row">
+            <label>Columns</label>
+            <select id="t-columns">
+              <option value="1">Single column</option>
+              <option value="2">Two columns</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">Background picture</div>
+          <div class="form-row">
+            <label>Picture (JPEG, PNG or WebP; maximum 1.5 MB)</label>
+            <input type="file" id="t-bg-image" accept="image/jpeg,image/png,image/webp"
+              onchange="selectBackgroundImage(event)">
+          </div>
+          <div id="t-bg-image-status" style="font-size:12px;color:var(--muted);margin-bottom:12px">
+            No picture set — the background color will be used.
+          </div>
+          <button type="button" onclick="removeBackgroundImage()"
+            style="margin-bottom:12px;padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--card);cursor:pointer">
+            Remove picture
+          </button>
+          <div class="form-row">
+            <label>Picture fit</label>
+            <select id="t-bg-fit" onchange="previewTheme()">
+              <option value="fill">Fill</option>
+              <option value="stretch">Stretch</option>
+              <option value="tile">Tile</option>
+              <option value="center">Center</option>
+              <option value="span">Span</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:14px">Name text settings</div>
+          <div class="form-row">
+            <label><input type="checkbox" id="t-bold" onchange="previewTheme()"> Bold names</label>
+          </div>
+          <div class="form-row">
+            <label>Font size (0 = automatic)</label>
+            <input type="number" id="t-font-size" min="0" max="120" value="0"
+              oninput="previewTheme()">
+          </div>
+          <div class="form-row">
+            <label>Font</label>
+            <select id="t-font" onchange="previewTheme()">
+              <option>Georgia</option><option>Arial</option><option>Verdana</option>
+              <option>Tahoma</option><option>Trebuchet MS</option>
+              <option>Times New Roman</option><option>Courier New</option>
+              <option>Garamond</option><option>Palatino Linotype</option>
+              <option>Arial Black</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Letter case</label>
+            <select id="t-text-case" onchange="previewTheme()">
+              <option value="original">As entered</option>
+              <option value="upper">UPPER CASE</option>
+              <option value="lower">lower case</option>
+              <option value="proper">Proper Case</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1273,6 +1364,7 @@ function populateCatSelects() {
       `<option value="${c.id}">${c.label}</option>`
     ).join('');
   });
+  handleCategoryChange();
 }
 
 // ── TODAY tab ──
@@ -1329,6 +1421,26 @@ function renderToday(items) {
 
 // ── ADD form ──
 let pendingNames = [];
+let birthdayDates = {};
+
+function selectedCategoryLabel() {
+  const categoryId = parseInt(document.getElementById('f-cat').value);
+  const category = CATEGORIES.find(c => c.id === categoryId);
+  return category ? category.label : '';
+}
+
+function isGiftOfLifeSelected() {
+  return selectedCategoryLabel() === 'Gift of Life';
+}
+
+function handleCategoryChange() {
+  const giftOfLife = isGiftOfLifeSelected();
+  const sharedDates = document.getElementById('shared-date-range');
+  const birthdayHelp = document.getElementById('birthday-date-help');
+  if (sharedDates) sharedDates.style.display = giftOfLife ? 'none' : 'flex';
+  if (birthdayHelp) birthdayHelp.style.display = giftOfLife ? 'block' : 'none';
+  renderNameTags();
+}
 
 function setDefaultDates() {
   const today = toDateStr(new Date());
@@ -1353,7 +1465,12 @@ function addNameToList() {
 
 function removeNameFromList(name) {
   pendingNames = pendingNames.filter(n => n !== name);
+  delete birthdayDates[name];
   renderNameTags();
+}
+
+function setBirthdayDate(name, value) {
+  birthdayDates[name] = value;
 }
 
 function renderNameTags() {
@@ -1362,7 +1479,15 @@ function renderNameTags() {
     el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0">No names added yet.</div>';
     return;
   }
-  el.innerHTML = [...pendingNames].sort().map(name => `
+  const giftOfLife = isGiftOfLifeSelected();
+  el.innerHTML = [...pendingNames].sort().map(name => giftOfLife ? `
+    <div style="display:grid;grid-template-columns:1fr 150px auto;gap:8px;align-items:center;margin-bottom:6px">
+      <span class="name-tag" style="margin:0">${name}</span>
+      <input type="date" value="${birthdayDates[name] || ''}"
+        aria-label="Birthday for ${name}"
+        onchange="setBirthdayDate('${esc(name)}', this.value)">
+      <button class="btn-del" onclick="removeNameFromList('${esc(name)}')" title="Remove">×</button>
+    </div>` : `
     <span class="name-tag">
       ${name}
       <button onclick="removeNameFromList('${esc(name)}')" title="Remove">×</button>
@@ -1375,55 +1500,53 @@ async function submitIntention() {
   const cat   = document.getElementById('f-cat').value;
   const start = document.getElementById('f-start').value;
   const end   = document.getElementById('f-end').value;
+  const giftOfLife = isGiftOfLifeSelected();
 
-  if (!off || !cat || !start || !end) {
+  if (!off || !cat || (!giftOfLife && (!start || !end))) {
     showMsg('err', 'Please fill in all fields.'); return;
   }
   if (!pendingNames.length) {
     showMsg('err', 'Please add at least one name.'); return;
   }
-  if (end < start) {
+  if (!giftOfLife && end < start) {
     showMsg('err', 'End date must be on or after start date.'); return;
+  }
+  if (giftOfLife && pendingNames.some(name => !birthdayDates[name])) {
+    showMsg('err', 'Please enter a birthday date for every name.'); return;
   }
 
   btn.disabled = true;
   btn.textContent = 'Saving…';
   showMsg('ok', `Saving ${pendingNames.length} intention(s)…`);
 
-  let saved = 0, failed = 0;
-  for (const name of pendingNames) {
-    try {
-      const res = await fetch(API + '/api/dashboard/intentions', {
-        method:  'POST',
-        headers: authHeaders(),
-        body:    JSON.stringify({
-          name,
-          offered_by:  off,
-          category_id: parseInt(cat),
-          start_date:  start,
-          end_date:    end
-        })
-      });
-      if (!res.ok) throw new Error();
-      saved++;
-    } catch(e) {
-      failed++;
-    }
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Save all intentions';
-
-  if (failed === 0) {
-    showMsg('ok', `✓ ${saved} intention(s) saved successfully.`);
+  try {
+    const res = await fetch(API + '/api/dashboard/intention-requests', {
+      method:  'POST',
+      headers: authHeaders(),
+      body:    JSON.stringify({
+        names: pendingNames,
+        offered_by:  off,
+        category_id: parseInt(cat),
+        start_date:  giftOfLife ? null : start,
+        end_date:    giftOfLife ? null : end,
+        birthday_dates: giftOfLife ? birthdayDates : null
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Could not save intentions.');
+    showMsg('ok', `✓ ${data.created} intention(s) saved successfully.`);
     pendingNames = [];
+    birthdayDates = {};
     renderNameTags();
     document.getElementById('f-offered').value = '';
     document.getElementById('f-name-input').value = '';
     setDefaultDates();
     loadToday();
-  } else {
-    showMsg('err', `${saved} saved, ${failed} failed. Please try again.`);
+  } catch(e) {
+    showMsg('err', e.message || 'Could not save intentions.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save all intentions';
   }
 }
 
@@ -1505,7 +1628,10 @@ async function doSweep() {
     });
     if (!res.ok) throw new Error('Sweep failed');
     const data = await res.json();
-    alert(`Sweep complete. ${data.deleted} intention${data.deleted === 1 ? '' : 's'} removed from the database.`);
+    alert(
+      `Sweep complete. ${data.deleted} intention${data.deleted === 1 ? '' : 's'} ` +
+      `and ${data.deleted_requests} empty request group${data.deleted_requests === 1 ? '' : 's'} removed.`
+    );
     loadManage();
   } catch(e) {
     alert(e.message || 'Could not complete sweep.');
@@ -1515,8 +1641,10 @@ async function doSweep() {
 }
 
 let manageItems  = [];
+let manageRequests = [];
 let sortCol      = 'name';
 let sortDir      = 'asc';
+let requestSearchTimer = null;
 
 async function loadManage() {
   const start = document.getElementById('filter-start').value;
@@ -1532,7 +1660,36 @@ async function loadManage() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     manageItems = await res.json();
     renderManageFiltered();
+    await loadRequestGroups();
   } catch(e) {}
+}
+
+async function loadRequestGroups() {
+  const start = document.getElementById('filter-start').value;
+  const end = document.getElementById('filter-end').value;
+  const offeror = document.getElementById('search-input').value.trim();
+  const params = new URLSearchParams();
+  if (start) params.append('start', start);
+  if (end) params.append('end', end);
+  if (offeror) params.append('offeror', offeror);
+  try {
+    const res = await fetch(
+      `${API}/api/dashboard/intention-requests?${params}`,
+      { headers: authHeaders() }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    manageRequests = await res.json();
+    renderRequestGroups(offeror.toLowerCase());
+  } catch(e) {
+    manageRequests = [];
+    renderRequestGroups('');
+  }
+}
+
+function handleManageSearch() {
+  renderManageFiltered();
+  clearTimeout(requestSearchTimer);
+  requestSearchTimer = setTimeout(loadRequestGroups, 300);
 }
 
 function sortManage(col) {
@@ -1580,6 +1737,104 @@ function renderManageFiltered() {
   });
 
   renderManage(filtered, q);
+  renderRequestGroups(q);
+}
+
+function renderRequestGroups(q) {
+  const container = document.getElementById('request-groups');
+  if (!container) return;
+  const requests = q
+    ? manageRequests.filter(request =>
+        request.offered_by.toLowerCase().includes(q) ||
+        request.intentions.some(item => item.name.toLowerCase().includes(q))
+      )
+    : manageRequests;
+  if (!requests.length) {
+    container.innerHTML =
+      '<div style="font-size:12px;color:var(--muted);padding:10px 0">No matching offeror requests.</div>';
+    return;
+  }
+  container.innerHTML = requests.map(request => `
+    <div class="form-card" style="margin-bottom:10px;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div>
+          <div style="font-size:14px;font-weight:500">
+            ${highlight(request.offered_by || 'Not specified', q)}
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">
+            Request #${request.id} · ${request.intentions.length} intention${request.intentions.length === 1 ? '' : 's'}
+          </div>
+        </div>
+        ${request.extendable ? `
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-align:right">
+              Extends ${request.intentions.length - request.gift_of_life_count}
+              eligible intention${request.intentions.length - request.gift_of_life_count === 1 ? '' : 's'}
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="date" id="extend-request-${request.id}"
+                min="${request.extendable_end_date}"
+                value="${request.extendable_end_date}">
+              <button class="btn-edit"
+                onclick="extendRequest(${request.id}, '${request.extendable_end_date}')">
+                Extend eligible intentions
+              </button>
+            </div>
+          </div>` : `
+          <span class="badge">Gift of Life only — fixed dates</span>`}
+      </div>
+      <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
+        ${request.intentions.map(item => `
+          <div style="display:grid;grid-template-columns:1fr 150px 210px;gap:8px;font-size:12px;padding:3px 0">
+            <span>${highlight(item.name, q)}</span>
+            <span class="badge" style="justify-self:start">${item.category}</span>
+            <span class="date-range">
+              ${item.category === 'Gift of Life'
+                ? `${fmtDate(item.start_date)} · Fixed birthday date`
+                : `${fmtDate(item.start_date)} — ${fmtDate(item.end_date)}`}
+            </span>
+          </div>`).join('')}
+      </div>
+      ${request.gift_of_life_count ? `
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">
+          ${request.gift_of_life_count} Gift of Life date${request.gift_of_life_count === 1 ? '' : 's'}
+          will not change when extending this request. Only the other intentions are eligible.
+        </div>` : ''}
+    </div>`).join('');
+}
+
+async function extendRequest(requestId, currentEnd) {
+  const input = document.getElementById(`extend-request-${requestId}`);
+  const newEnd = input ? input.value : '';
+  if (!newEnd) {
+    alert('Please select a new ending date.'); return;
+  }
+  if (newEnd <= currentEnd) {
+    alert('The new ending date must be later than the current ending date.'); return;
+  }
+  if (!confirm(`Extend all eligible intentions in this request through ${fmtDate(newEnd)}?`)) return;
+  try {
+    const res = await fetch(
+      `${API}/api/dashboard/intention-requests/${requestId}/end-date`,
+      {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ end_date: newEnd })
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Could not extend request.');
+    alert(
+      `${data.updated} intention${data.updated === 1 ? '' : 's'} extended.` +
+      (data.gift_of_life_unchanged
+        ? ` ${data.gift_of_life_unchanged} Gift of Life date${data.gift_of_life_unchanged === 1 ? '' : 's'} unchanged.`
+        : '')
+    );
+    loadManage();
+    loadToday();
+  } catch(e) {
+    alert(e.message || 'Could not extend request.');
+  }
 }
 
 function highlight(text, q) {
@@ -2707,6 +2962,52 @@ async function superadminResetPw() {
 
 // ── Theme ──
 
+let pendingBackgroundImage = null;
+let removeSavedBackgroundImage = false;
+let savedBackgroundImageUrl = null;
+
+function selectBackgroundImage(event) {
+  const file = event.target.files[0];
+  const status = document.getElementById('t-bg-image-status');
+  if (!file) return;
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 1500000) {
+    status.textContent = 'Choose a JPEG, PNG or WebP image no larger than 1.5 MB.';
+    status.style.color = '#a33';
+    event.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingBackgroundImage = reader.result;
+    removeSavedBackgroundImage = false;
+    status.textContent = `New picture selected: ${file.name}`;
+    status.style.color = 'var(--accent)';
+    previewTheme();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeBackgroundImage() {
+  pendingBackgroundImage = null;
+  savedBackgroundImageUrl = null;
+  removeSavedBackgroundImage = true;
+  document.getElementById('t-bg-image').value = '';
+  document.getElementById('t-bg-image-status').textContent =
+    'Picture will be removed when you save.';
+  previewTheme();
+}
+
+function previewCase(text) {
+  const mode = document.getElementById('t-text-case').value;
+  if (mode === 'upper') return text.toLocaleUpperCase();
+  if (mode === 'lower') return text.toLocaleLowerCase();
+  if (mode === 'proper') {
+    return text.toLocaleLowerCase().replace(/\p{L}+/gu, word =>
+      word === 'and' ? word : word.charAt(0).toLocaleUpperCase() + word.slice(1));
+  }
+  return text;
+}
+
 function applyPreset(name) {
   const p = PRESETS[name];
   if (!p) return;
@@ -2741,11 +3042,32 @@ function previewTheme() {
   const prev = document.getElementById('theme-preview');
   if (!prev) return;
   prev.style.background = bg;
+  const bgImage = pendingBackgroundImage || savedBackgroundImageUrl;
+  prev.style.backgroundImage = bgImage ? `url("${bgImage}")` : 'none';
+  const fits = {
+    fill:['cover','no-repeat','center'], stretch:['100% 100%','no-repeat','center'],
+    tile:['auto','repeat','left top'], center:['auto','no-repeat','center'],
+    span:['100% auto','no-repeat','center']
+  };
+  const bgStyle = fits[document.getElementById('t-bg-fit').value] || fits.fill;
+  prev.style.backgroundSize = bgStyle[0];
+  prev.style.backgroundRepeat = bgStyle[1];
+  prev.style.backgroundPosition = bgStyle[2];
   document.getElementById('prev-cross').style.color = accent;
   document.getElementById('prev-cat').style.color   = label;
   document.getElementById('prev-name1').style.color = text;
   document.getElementById('prev-name2').style.color = text;
   document.getElementById('prev-name3').style.color = text;
+  const font = document.getElementById('t-font').value;
+  const bold = document.getElementById('t-bold').checked;
+  const size = Number(document.getElementById('t-font-size').value);
+  ['prev-name1','prev-name2','prev-name3'].forEach((id, index) => {
+    const el = document.getElementById(id);
+    el.textContent = previewCase(['Reyes Family','Santos Family','dela Cruz Family'][index]);
+    el.style.fontFamily = `"${font}", serif`;
+    el.style.fontWeight = bold ? '700' : '400';
+    el.style.fontSize = size ? Math.min(size, 40) + 'px' : '15px';
+  });
 
   // Apply dashboard accent live
   document.documentElement.style.setProperty('--accent',  dash);
@@ -2768,6 +3090,21 @@ async function loadTheme() {
     document.getElementById('t-label-hex').value  = data.theme_label;
     document.getElementById('t-dash').value       = data.dash_accent;
     document.getElementById('t-dash-hex').value   = data.dash_accent;
+    document.getElementById('t-seconds').value    = data.display_interval_seconds;
+    document.getElementById('t-count').value      = data.display_names_per_page;
+    document.getElementById('t-columns').value    = String(data.display_columns);
+    document.getElementById('t-bg-fit').value     = data.display_bg_fit;
+    document.getElementById('t-font').value       = data.display_font_family;
+    document.getElementById('t-font-size').value  = data.display_font_size;
+    document.getElementById('t-bold').checked     = data.display_font_bold;
+    document.getElementById('t-text-case').value  = data.display_text_case;
+    savedBackgroundImageUrl = data.background_image_url;
+    pendingBackgroundImage = null;
+    removeSavedBackgroundImage = false;
+    document.getElementById('t-bg-image-status').textContent =
+      data.has_background_image
+        ? 'A saved background picture is active.'
+        : 'No picture set — the background color will be used.';
     previewTheme();
   } catch(e) {}
 }
@@ -2788,11 +3125,22 @@ async function saveTheme() {
         theme_accent: document.getElementById('t-accent').value,
         theme_label:  document.getElementById('t-label').value,
         dash_accent:  document.getElementById('t-dash').value,
+        display_interval_seconds: Number(document.getElementById('t-seconds').value),
+        display_names_per_page: Number(document.getElementById('t-count').value),
+        display_columns: Number(document.getElementById('t-columns').value),
+        display_bg_fit: document.getElementById('t-bg-fit').value,
+        background_image: pendingBackgroundImage,
+        remove_background_image: removeSavedBackgroundImage,
+        display_font_family: document.getElementById('t-font').value,
+        display_font_size: Number(document.getElementById('t-font-size').value),
+        display_font_bold: document.getElementById('t-bold').checked,
+        display_text_case: document.getElementById('t-text-case').value,
       })
     });
     if (!res.ok) throw new Error();
     msg.className   = 'ok';
     msg.textContent = '✓ Theme saved. Display page will use new colors.';
+    await loadTheme();
     setTimeout(() => { msg.textContent = ''; msg.className = ''; }, 4000);
   } catch(e) {
     msg.className   = 'err';
