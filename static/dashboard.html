@@ -1645,6 +1645,7 @@ let manageRequests = [];
 let sortCol      = 'name';
 let sortDir      = 'asc';
 let requestSearchTimer = null;
+let requestSearchController = null;
 
 async function loadManage() {
   const start = document.getElementById('filter-start').value;
@@ -1667,29 +1668,40 @@ async function loadManage() {
 async function loadRequestGroups() {
   const start = document.getElementById('filter-start').value;
   const end = document.getElementById('filter-end').value;
-  const offeror = document.getElementById('search-input').value.trim();
+  const search = document.getElementById('search-input').value.trim();
+  if (search.length < 2) {
+    if (requestSearchController) requestSearchController.abort();
+    manageRequests = [];
+    renderRequestGroups(search.toLowerCase());
+    return;
+  }
+  if (requestSearchController) requestSearchController.abort();
+  requestSearchController = new AbortController();
   const params = new URLSearchParams();
   if (start) params.append('start', start);
   if (end) params.append('end', end);
-  if (offeror) params.append('offeror', offeror);
+  params.append('q', search);
   try {
     const res = await fetch(
       `${API}/api/dashboard/intention-requests?${params}`,
-      { headers: authHeaders() }
+      { headers: authHeaders(), signal: requestSearchController.signal }
     );
     if (!res.ok) throw new Error('HTTP ' + res.status);
     manageRequests = await res.json();
-    renderRequestGroups(offeror.toLowerCase());
+    renderRequestGroups(search.toLowerCase());
   } catch(e) {
+    if (e.name === 'AbortError') return;
     manageRequests = [];
-    renderRequestGroups('');
+    renderRequestGroups(search.toLowerCase());
   }
 }
 
 function handleManageSearch() {
+  if (requestSearchController) requestSearchController.abort();
+  manageRequests = [];
   renderManageFiltered();
   clearTimeout(requestSearchTimer);
-  requestSearchTimer = setTimeout(loadRequestGroups, 300);
+  requestSearchTimer = setTimeout(loadRequestGroups, 180);
 }
 
 function sortManage(col) {
@@ -1743,12 +1755,12 @@ function renderManageFiltered() {
 function renderRequestGroups(q) {
   const container = document.getElementById('request-groups');
   if (!container) return;
-  const requests = q
-    ? manageRequests.filter(request =>
-        request.offered_by.toLowerCase().includes(q) ||
-        request.intentions.some(item => item.name.toLowerCase().includes(q))
-      )
-    : manageRequests;
+  if (!q || q.length < 2) {
+    container.innerHTML =
+      '<div style="font-size:12px;color:var(--muted);padding:10px 0">Type at least 2 letters to find an offeror or intention name.</div>';
+    return;
+  }
+  const requests = manageRequests;
   if (!requests.length) {
     container.innerHTML =
       '<div style="font-size:12px;color:var(--muted);padding:10px 0">No matching offeror requests.</div>';
@@ -1759,10 +1771,15 @@ function renderRequestGroups(q) {
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
         <div>
           <div style="font-size:14px;font-weight:500">
-            ${highlight(request.offered_by || 'Not specified', q)}
+            ${highlight(request.offered_by || 'Offeror not specified', q)}
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">
             Request #${request.id} · ${request.intentions.length} intention${request.intentions.length === 1 ? '' : 's'}
+          </div>
+          <div style="font-size:10px;color:var(--accent);margin-top:3px">
+            ${request.match_source === 'intention'
+              ? `Matched intention: ${request.matched_intention_names.map(name => highlight(name, q)).join(', ')}`
+              : 'Matched offeror'}
           </div>
         </div>
         ${request.extendable ? `

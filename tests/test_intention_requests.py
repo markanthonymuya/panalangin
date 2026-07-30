@@ -106,6 +106,65 @@ class IntentionRequestTests(unittest.TestCase):
             )
         self.assertEqual(raised.exception.status_code, 422)
 
+    def test_group_search_returns_only_ranked_near_matches(self):
+        today = date.today()
+        groups = [
+            ("Mark Muya", "Family Intention"),
+            ("Mark Anthony Santos", "Thanksgiving Intention"),
+            ("Different Offeror", "Mark Dela Cruz"),
+            ("Unrelated Person", "Completely Different"),
+            ("", "Juan Villanueva"),
+        ]
+        for offered_by, name in groups:
+            request = models.OfferingRequest(
+                parish_id=self.ctkp.id,
+                offered_by=offered_by,
+                start_date=today,
+                end_date=today + timedelta(days=7),
+            )
+            self.db.add(request)
+            self.db.flush()
+            self.db.add(models.Intention(
+                parish_id=self.ctkp.id,
+                category_id=self.ctkp_category.id,
+                offering_request_id=request.id,
+                name=name,
+                offered_by=offered_by,
+                start_date=today,
+                end_date=today + timedelta(days=7),
+                is_active=True,
+            ))
+        self.db.commit()
+
+        results = main.list_intention_requests(
+            q="Mark",
+            current_user=self.ctkp_user,
+            db=self.db,
+        )
+
+        self.assertEqual(
+            [item["offered_by"] for item in results],
+            ["Mark Muya", "Mark Anthony Santos", "Different Offeror"],
+        )
+        self.assertEqual(results[2]["match_source"], "intention")
+        self.assertEqual(results[2]["matched_intention_names"], ["Mark Dela Cruz"])
+        unspecified = main.list_intention_requests(
+            q="Villanueva",
+            current_user=self.ctkp_user,
+            db=self.db,
+        )
+        self.assertEqual(len(unspecified), 1)
+        self.assertEqual(unspecified[0]["offered_by"], "")
+        self.assertEqual(unspecified[0]["match_source"], "intention")
+        self.assertEqual(
+            main.list_intention_requests(
+                q="",
+                current_user=self.ctkp_user,
+                db=self.db,
+            ),
+            [],
+        )
+
     def test_batch_create_groups_all_names_under_one_request(self):
         result = main.create_intention_request(
             main.IntentionRequestCreate(
