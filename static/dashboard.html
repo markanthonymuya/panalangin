@@ -123,6 +123,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 /* ── ADD FORM ── */
 .form-card { background: var(--card); border: 1px solid var(--border);
              border-radius: var(--radius); padding: 1.5rem; max-width: 520px; }
+.add-forms-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+                  gap:1.2rem; align-items:start; }
+.add-forms-grid .form-card { max-width:none; }
+@media (max-width: 900px) {
+  .add-forms-grid { grid-template-columns:1fr; }
+}
 .form-row { margin-bottom: 1rem; }
 .form-row label { display: block; font-size: 12px; color: var(--muted);
                   letter-spacing: .04em; margin-bottom: 4px; }
@@ -529,8 +535,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     <!-- ADD TAB -->
     <div id="tab-add" class="parish-only" style="display:none">
       <div class="section-title">Add intention</div>
-      <div class="section-sub">Parish staff can encode multiple names per offeror — add all before saving</div>
-      <div class="form-card" style="max-width:560px">
+      <div class="section-sub">Use the original form or quickly encode several intention types under one offeror and date range.</div>
+      <div class="add-forms-grid">
+      <div class="form-card">
+        <div style="font-weight:600;margin-bottom:1rem">Original form</div>
         <div class="form-row">
           <label>Offered by</label>
           <input type="text" id="f-offered" placeholder="e.g. Lourdes Reyes">
@@ -555,8 +563,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         </div>
         <div id="birthday-date-help"
           style="display:none;font-size:12px;color:var(--muted);margin-top:8px">
-          Enter one birthday date beside each name. Each Gift of Life intention
-          will be active only on that exact date.
+          <span id="individual-date-help-text">Enter one date beside each name.</span>
+          Each intention will be active only on that exact date.
         </div>
 
         <div style="margin-top:1.2rem">
@@ -580,6 +588,47 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         <button id="submit-btn" class="btn-submit" onclick="submitIntention()"
           style="margin-top:1.2rem;width:100%">Save all intentions</button>
         <div id="form-msg"></div>
+      </div>
+
+      <div class="form-card">
+        <div style="font-weight:600">Quick group encoding</div>
+        <div style="font-size:12px;color:var(--muted);margin:4px 0 1rem">
+          Use one offeror and date range, then add different intention types and names.
+        </div>
+        <div class="form-row">
+          <label>Offered by</label>
+          <input type="text" id="q-offered" placeholder="e.g. Lourdes Reyes">
+        </div>
+        <div class="form-row form-dates">
+          <div>
+            <label>Start date</label>
+            <input type="date" id="q-start">
+          </div>
+          <div>
+            <label>End date</label>
+            <input type="date" id="q-end">
+          </div>
+        </div>
+        <div style="margin-top:1.2rem">
+          <label style="font-size:12px;color:var(--muted);letter-spacing:.04em">
+            Intentions to include
+          </label>
+          <div style="display:grid;grid-template-columns:minmax(120px,.8fr) minmax(150px,1.2fr) auto;gap:8px;margin-top:6px">
+            <select id="q-cat" aria-label="Intention type"></select>
+            <input type="text" id="q-name" placeholder="Name or intention"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();addQuickIntention()}">
+            <button onclick="addQuickIntention()" class="btn-submit"
+              style="padding:8px 14px;margin:0;white-space:nowrap">+ Add</button>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:5px">
+            Gift of Life and Death Anniversary use individual dates and remain in the original form.
+          </div>
+          <div id="quick-intentions-list" style="margin-top:12px"></div>
+        </div>
+        <button id="quick-submit-btn" class="btn-submit" onclick="submitQuickIntentions()"
+          style="margin-top:1.2rem;width:100%">Save grouped intentions</button>
+        <div id="quick-form-msg"></div>
+      </div>
       </div>
     </div>
 
@@ -1458,7 +1507,12 @@ function showTab(name) {
   if (name === 'users')     { loadUsers(); }
   if (name === 'theme')     { loadTheme(); }
   if (name === 'codes')    { loadCodes(); }
-  if (name === 'add')    { setDefaultDates(); renderNameTags(); }
+  if (name === 'add')    {
+    setDefaultDates();
+    setQuickDefaultDates();
+    renderNameTags();
+    renderQuickIntentions();
+  }
 }
 
 // ── Categories ──
@@ -1491,6 +1545,13 @@ function populateCatSelects() {
       `<option value="${c.id}">${c.label}</option>`
     ).join('');
   });
+  const quickSelect = document.getElementById('q-cat');
+  if (quickSelect) {
+    quickSelect.innerHTML = CATEGORIES
+      .filter(c => !['gift of life', 'death anniversary'].includes(c.label.toLowerCase()))
+      .map(c => `<option value="${c.id}">${c.label}</option>`)
+      .join('');
+  }
   handleCategoryChange();
 }
 
@@ -1560,14 +1621,24 @@ function isGiftOfLifeSelected() {
   return selectedCategoryLabel() === 'Gift of Life';
 }
 
+function isIndividualDateSelected() {
+  return ['Gift of Life', 'Death Anniversary'].includes(selectedCategoryLabel());
+}
+
 function handleCategoryChange() {
-  const giftOfLife = isGiftOfLifeSelected();
+  const individualDate = isIndividualDateSelected();
   const sharedDates = document.getElementById('shared-date-range');
   const birthdayHelp = document.getElementById('birthday-date-help');
+  const helpText = document.getElementById('individual-date-help-text');
   const massCardNote = document.getElementById('mass-card-date-note');
   const massCard = selectedCategoryLabel() === 'Mass Card';
-  if (sharedDates) sharedDates.style.display = giftOfLife ? 'none' : 'flex';
-  if (birthdayHelp) birthdayHelp.style.display = giftOfLife ? 'block' : 'none';
+  if (sharedDates) sharedDates.style.display = individualDate ? 'none' : 'flex';
+  if (birthdayHelp) birthdayHelp.style.display = individualDate ? 'block' : 'none';
+  if (helpText) {
+    helpText.textContent = selectedCategoryLabel() === 'Gift of Life'
+      ? 'Enter one birthday date beside each name.'
+      : 'Enter one death anniversary date beside each name.';
+  }
   if (massCardNote) massCardNote.style.display = massCard ? 'block' : 'none';
   if (massCard) {
     const startInput = document.getElementById('f-start');
@@ -1640,12 +1711,12 @@ function renderNameTags() {
     el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0">No names added yet.</div>';
     return;
   }
-  const giftOfLife = isGiftOfLifeSelected();
-  el.innerHTML = [...pendingNames].sort().map(name => giftOfLife ? `
+  const individualDate = isIndividualDateSelected();
+  el.innerHTML = [...pendingNames].sort().map(name => individualDate ? `
     <div style="display:grid;grid-template-columns:1fr 150px auto;gap:8px;align-items:center;margin-bottom:6px">
       <span class="name-tag" style="margin:0">${name}</span>
       <input type="date" value="${birthdayDates[name] || ''}"
-        aria-label="Birthday for ${name}"
+        aria-label="Date for ${name}"
         onchange="setBirthdayDate('${esc(name)}', this.value)">
       <button class="btn-del" onclick="removeNameFromList('${esc(name)}')" title="Remove">×</button>
     </div>` : `
@@ -1661,19 +1732,19 @@ async function submitIntention() {
   const cat   = document.getElementById('f-cat').value;
   const start = document.getElementById('f-start').value;
   const end   = document.getElementById('f-end').value;
-  const giftOfLife = isGiftOfLifeSelected();
+  const individualDate = isIndividualDateSelected();
 
-  if (!off || !cat || (!giftOfLife && (!start || !end))) {
+  if (!off || !cat || (!individualDate && (!start || !end))) {
     showMsg('err', 'Please fill in all fields.'); return;
   }
   if (!pendingNames.length) {
     showMsg('err', 'Please add at least one name.'); return;
   }
-  if (!giftOfLife && end < start) {
+  if (!individualDate && end < start) {
     showMsg('err', 'End date must be on or after start date.'); return;
   }
-  if (giftOfLife && pendingNames.some(name => !birthdayDates[name])) {
-    showMsg('err', 'Please enter a birthday date for every name.'); return;
+  if (individualDate && pendingNames.some(name => !birthdayDates[name])) {
+    showMsg('err', 'Please enter an individual date for every name.'); return;
   }
 
   btn.disabled = true;
@@ -1688,9 +1759,9 @@ async function submitIntention() {
         names: pendingNames,
         offered_by:  off,
         category_id: parseInt(cat),
-        start_date:  giftOfLife ? null : start,
-        end_date:    giftOfLife ? null : end,
-        birthday_dates: giftOfLife ? birthdayDates : null
+        start_date:  individualDate ? null : start,
+        end_date:    individualDate ? null : end,
+        birthday_dates: individualDate ? birthdayDates : null
       })
     });
     const data = await res.json();
@@ -1715,6 +1786,121 @@ function showMsg(type, text) {
   const el = document.getElementById('form-msg');
   el.textContent = text;
   el.className   = type;
+}
+
+// ── Quick group encoding ──
+let quickIntentions = [];
+let quickIntentionSequence = 1;
+
+function setQuickDefaultDates() {
+  const today = toDateStr(new Date());
+  const start = document.getElementById('q-start');
+  const end = document.getElementById('q-end');
+  if (start && !start.value) start.value = today;
+  if (end && !end.value) end.value = today;
+}
+
+function addQuickIntention() {
+  const categoryId = document.getElementById('q-cat').value;
+  const nameInput = document.getElementById('q-name');
+  const name = nameInput.value.trim();
+  if (!categoryId || !name) {
+    showQuickMsg('err', 'Choose an intention type and enter a name.');
+    return;
+  }
+  const category = CATEGORIES.find(c => String(c.id) === String(categoryId));
+  quickIntentions.push({
+    id: quickIntentionSequence++,
+    category_id: Number(categoryId),
+    category: category ? category.label : 'Intention',
+    name
+  });
+  nameInput.value = '';
+  nameInput.focus();
+  showQuickMsg('', '');
+  renderQuickIntentions();
+}
+
+function removeQuickIntention(id) {
+  quickIntentions = quickIntentions.filter(item => item.id !== id);
+  renderQuickIntentions();
+}
+
+function renderQuickIntentions() {
+  const el = document.getElementById('quick-intentions-list');
+  if (!el) return;
+  if (!quickIntentions.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px 0">No intentions added yet.</div>';
+    return;
+  }
+  el.innerHTML = quickIntentions.map(item => `
+    <div style="display:grid;grid-template-columns:minmax(110px,.8fr) minmax(140px,1.2fr) auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:11px;color:var(--accent);font-weight:600">${escHtml(item.category)}</span>
+      <span>${escHtml(item.name)}</span>
+      <button class="btn-del" onclick="removeQuickIntention(${item.id})" title="Remove">×</button>
+    </div>`).join('');
+}
+
+function showQuickMsg(type, text) {
+  const el = document.getElementById('quick-form-msg');
+  if (!el) return;
+  el.textContent = text;
+  el.className = type;
+}
+
+async function submitQuickIntentions() {
+  const btn = document.getElementById('quick-submit-btn');
+  const offeredBy = document.getElementById('q-offered').value.trim();
+  const startDate = document.getElementById('q-start').value;
+  const endDate = document.getElementById('q-end').value;
+
+  if (!offeredBy || !startDate || !endDate) {
+    showQuickMsg('err', 'Please enter the offeror and date range.');
+    return;
+  }
+  if (endDate < startDate) {
+    showQuickMsg('err', 'End date must be on or after start date.');
+    return;
+  }
+  if (!quickIntentions.length) {
+    showQuickMsg('err', 'Please add at least one intention.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  showQuickMsg('ok', `Saving ${quickIntentions.length} intention(s)…`);
+  try {
+    const res = await fetch(API + '/api/dashboard/intention-requests/batch', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        offered_by: offeredBy,
+        start_date: startDate,
+        end_date: endDate,
+        intentions: quickIntentions.map(item => ({
+          name: item.name,
+          category_id: item.category_id
+        }))
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Could not save grouped intentions.');
+    showQuickMsg('ok', `✓ ${data.created} intention(s) saved as one group.`);
+    quickIntentions = [];
+    renderQuickIntentions();
+    document.getElementById('q-offered').value = '';
+    document.getElementById('q-name').value = '';
+    document.getElementById('q-start').value = '';
+    document.getElementById('q-end').value = '';
+    setQuickDefaultDates();
+    loadToday();
+  } catch(e) {
+    showQuickMsg('err', e.message || 'Could not save grouped intentions.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save grouped intentions';
+  }
 }
 
 // ── MANAGE tab ──

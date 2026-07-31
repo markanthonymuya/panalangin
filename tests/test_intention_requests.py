@@ -47,10 +47,16 @@ class IntentionRequestTests(unittest.TestCase):
             label="Gift of Life",
             display_order=2,
         )
+        self.death_category = models.Category(
+            parish_id=self.ctkp.id,
+            label="Death Anniversary",
+            display_order=3,
+        )
         self.db.add_all([
             self.ctkp_category,
             self.other_category,
             self.gift_category,
+            self.death_category,
         ])
         self.db.commit()
         self.ctkp_user = SimpleNamespace(parish_id=self.ctkp.id)
@@ -243,6 +249,82 @@ class IntentionRequestTests(unittest.TestCase):
             0,
         )
 
+    def test_quick_group_create_supports_multiple_categories(self):
+        second_category = models.Category(
+            parish_id=self.ctkp.id,
+            label="Healing",
+            display_order=1,
+        )
+        self.db.add(second_category)
+        self.db.commit()
+
+        result = main.create_batch_intention_request(
+            main.BatchIntentionRequestCreate(
+                offered_by="Group Offeror",
+                start_date=date(2026, 8, 1),
+                end_date=date(2026, 8, 31),
+                intentions=[
+                    main.BatchIntentionItem(
+                        name="Thanksgiving Name",
+                        category_id=self.ctkp_category.id,
+                    ),
+                    main.BatchIntentionItem(
+                        name="Healing Name",
+                        category_id=second_category.id,
+                    ),
+                ],
+            ),
+            current_user=self.ctkp_user,
+            db=self.db,
+        )
+
+        intentions = (
+            self.db.query(models.Intention)
+            .filter(
+                models.Intention.offering_request_id
+                == result["request_id"]
+            )
+            .all()
+        )
+        self.assertEqual(result["created"], 2)
+        self.assertEqual(
+            {item.category_id for item in intentions},
+            {self.ctkp_category.id, second_category.id},
+        )
+        self.assertEqual(
+            {item.offered_by for item in intentions},
+            {"Group Offeror"},
+        )
+        self.assertEqual(
+            {(item.start_date, item.end_date) for item in intentions},
+            {(date(2026, 8, 1), date(2026, 8, 31))},
+        )
+
+    def test_quick_group_create_rejects_gift_of_life(self):
+        with self.assertRaises(HTTPException) as raised:
+            main.create_batch_intention_request(
+                main.BatchIntentionRequestCreate(
+                    offered_by="Birthday Offeror",
+                    start_date=date(2026, 8, 1),
+                    end_date=date(2026, 8, 31),
+                    intentions=[
+                        main.BatchIntentionItem(
+                            name="Birthday Name",
+                            category_id=self.gift_category.id,
+                        ),
+                    ],
+                ),
+                current_user=self.ctkp_user,
+                db=self.db,
+            )
+        self.assertEqual(raised.exception.status_code, 400)
+        self.assertEqual(
+            self.db.query(models.Intention)
+            .filter(models.Intention.parish_id == self.ctkp.id)
+            .count(),
+            0,
+        )
+
     def test_gift_of_life_uses_one_exact_date_per_name(self):
         first_birthday = date(2026, 8, 10)
         second_birthday = date(2026, 9, 15)
@@ -280,6 +362,42 @@ class IntentionRequestTests(unittest.TestCase):
         self.assertEqual(
             dates["Second Birthday"],
             (second_birthday, second_birthday),
+        )
+
+    def test_death_anniversary_uses_one_exact_date_per_name(self):
+        first_date = date(2026, 10, 2)
+        second_date = date(2026, 11, 4)
+        result = main.create_intention_request(
+            main.IntentionRequestCreate(
+                names=["First Anniversary", "Second Anniversary"],
+                offered_by="Memorial Offeror",
+                category_id=self.death_category.id,
+                birthday_dates={
+                    "First Anniversary": first_date,
+                    "Second Anniversary": second_date,
+                },
+            ),
+            current_user=self.ctkp_user,
+            db=self.db,
+        )
+
+        intentions = (
+            self.db.query(models.Intention)
+            .filter(
+                models.Intention.offering_request_id
+                == result["request_id"]
+            )
+            .all()
+        )
+        self.assertEqual(
+            {
+                item.name: (item.start_date, item.end_date)
+                for item in intentions
+            },
+            {
+                "First Anniversary": (first_date, first_date),
+                "Second Anniversary": (second_date, second_date),
+            },
         )
 
     def test_extension_skips_gift_of_life_intentions(self):
