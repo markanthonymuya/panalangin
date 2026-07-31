@@ -235,6 +235,16 @@ class IntentionRequestCreate(BaseModel):
     end_date:    Optional[date] = None
     birthday_dates: Optional[dict[str, date]] = None
 
+class BatchIntentionItem(BaseModel):
+    name: str
+    category_id: int
+
+class BatchIntentionRequestCreate(BaseModel):
+    offered_by: str
+    start_date: date
+    end_date: date
+    intentions: list[BatchIntentionItem]
+
 class RequestEndDateUpdate(BaseModel):
     end_date: date
 
@@ -402,8 +412,11 @@ def create_intention_request(
         db, current_user.parish_id, payload.category_id
     )
 
-    is_gift_of_life = category.label == "Gift of Life"
-    if is_gift_of_life:
+    is_individual_date = category.label in {
+        "Gift of Life",
+        "Death Anniversary",
+    }
+    if is_individual_date:
         birthday_dates = payload.birthday_dates or {}
         missing_birthdays = [
             name for name in names if name not in birthday_dates
@@ -411,7 +424,7 @@ def create_intention_request(
         if missing_birthdays:
             raise HTTPException(
                 status_code=400,
-                detail="A birthday date is required for every Gift of Life name",
+                detail=f"An individual date is required for every {category.label} name",
             )
         request_start = min(birthday_dates[name] for name in names)
         request_end = max(birthday_dates[name] for name in names)
@@ -446,10 +459,10 @@ def create_intention_request(
             name=name,
             offered_by=offered_by,
             start_date=(
-                birthday_dates[name] if is_gift_of_life else request_start
+                birthday_dates[name] if is_individual_date else request_start
             ),
             end_date=(
-                birthday_dates[name] if is_gift_of_life else request_end
+                birthday_dates[name] if is_individual_date else request_end
             ),
             offering_request_id=offering_request.id,
         )
@@ -460,6 +473,93 @@ def create_intention_request(
     return {
         "request_id": offering_request.id,
         "created": len(intentions),
+        "message": "Intentions added",
+    }
+
+
+@app.post("/api/dashboard/intention-requests/batch", status_code=201)
+def create_batch_intention_request(
+    payload: BatchIntentionRequestCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    offered_by = payload.offered_by.strip()
+    if not offered_by:
+        raise HTTPException(status_code=400, detail="Offered by is required")
+    if payload.end_date < payload.start_date:
+        raise HTTPException(
+            status_code=400,
+            detail="End date must be on or after start date",
+        )
+    if not payload.intentions:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one intention is required",
+        )
+    if len(payload.intentions) > 500:
+        raise HTTPException(
+            status_code=400,
+            detail="A request cannot contain more than 500 intentions",
+        )
+
+    category_ids = {item.category_id for item in payload.intentions}
+    categories = db.query(models.Category).filter(
+        models.Category.id.in_(category_ids),
+        models.Category.parish_id == current_user.parish_id,
+        models.Category.is_active == True,
+    ).all()
+    categories_by_id = {category.id: category for category in categories}
+    if set(categories_by_id) != category_ids:
+        raise HTTPException(status_code=400, detail="Invalid category")
+    if any(
+        categories_by_id[item.category_id].label in {
+            "Gift of Life",
+            "Death Anniversary",
+        }
+        for item in payload.intentions
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Gift of Life and Death Anniversary must use the existing "
+                "form because each name requires its own date"
+            ),
+        )
+
+    cleaned_items = []
+    for item in payload.intentions:
+        name = item.name.strip()
+        if not name:
+            raise HTTPException(
+                status_code=400,
+                detail="Every intention must have a name",
+            )
+        cleaned_items.append((name, item.category_id))
+
+    offering_request = models.OfferingRequest(
+        parish_id=current_user.parish_id,
+        offered_by=offered_by,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+    )
+    db.add(offering_request)
+    db.flush()
+    db.add_all([
+        models.Intention(
+            parish_id=current_user.parish_id,
+            category_id=category_id,
+            name=name,
+            offered_by=offered_by,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
+            offering_request_id=offering_request.id,
+        )
+        for name, category_id in cleaned_items
+    ])
+    db.commit()
+    return {
+        "request_id": offering_request.id,
+        "created": len(cleaned_items),
         "message": "Intentions added",
     }
 
