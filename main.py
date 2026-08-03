@@ -97,6 +97,7 @@ def seed_demo(db: Session):
     # Demo parish
     parish = models.Parish(
         name="St. Thomas Aquinas Parish",
+        display_parish_name="St. Thomas Aquinas Parish",
         slug="demo",
         plan="trial",
         trial_ends_at=now + timedelta(days=90),
@@ -389,6 +390,14 @@ def get_parish_category(db: Session, parish_id: int, category_id: int):
     if not category:
         raise HTTPException(status_code=400, detail="Invalid category")
     return category
+
+
+def parish_display_name(parish: models.Parish) -> str:
+    """Use the registered name when no custom display name has been chosen."""
+    custom_name = (parish.display_parish_name or "").strip()
+    if not custom_name or custom_name == "Parish Name":
+        return parish.name
+    return custom_name
 
 
 @app.post("/api/dashboard/intention-requests", status_code=201)
@@ -873,7 +882,11 @@ def delete_intention(
 # by category — this is what display.html calls
 # ─────────────────────────────────────────────
 @app.get("/api/{slug}/intentions")
-def get_display_intentions(slug: str, db: Session = Depends(get_db)):
+def get_display_intentions(
+    slug: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     try:
         parish = db.query(models.Parish).filter(
             models.Parish.slug == slug,
@@ -889,7 +902,7 @@ def get_display_intentions(slug: str, db: Session = Depends(get_db)):
         ).order_by(models.Category.display_order).all()
 
         result = {
-            "parish":       parish.display_parish_name or "Parish Name",
+            "parish":       parish_display_name(parish),
             "theme_bg":     parish.theme_bg     or "#080c18",
             "theme_text":   parish.theme_text   or "#f0ead6",
             "theme_accent": parish.theme_accent or "#c9b97a",
@@ -956,7 +969,19 @@ def get_display_intentions(slug: str, db: Session = Depends(get_db)):
                         for n in unique_names
                     ]
                 })
-        return result
+        payload_json = json.dumps(
+            result,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        etag = f'"{hashlib.sha256(payload_json.encode()).hexdigest()}"'
+        response_headers = {
+            "ETag": etag,
+            "Cache-Control": "private, no-cache",
+        }
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers=response_headers)
+        return JSONResponse(content=result, headers=response_headers)
     except HTTPException:
         raise
     except Exception as e:
@@ -1082,6 +1107,7 @@ def register_parish(payload: RegisterPayload, db: Session = Depends(get_db)):
     # Create parish
     parish = models.Parish(
         name          = payload.parish_name.strip(),
+        display_parish_name = payload.parish_name.strip(),
         slug          = slug,
         plan          = "trial",
         trial_ends_at = now + timedelta(days=90),
@@ -1278,6 +1304,7 @@ def create_parish_manual(
 
     parish = models.Parish(
         name          = payload.parish_name.strip(),
+        display_parish_name = payload.parish_name.strip(),
         slug          = slug,
         plan          = "trial",
         trial_ends_at = now + timedelta(days=payload.trial_days),
@@ -2004,7 +2031,7 @@ class ThemeUpdate(BaseModel):
     display_font_size: int = 0
     display_font_bold: bool = False
     display_text_case: str = "original"
-    display_parish_name: str = "Parish Name"
+    display_parish_name: str = ""
     display_parish_color: str = "#8a7f6a"
     display_parish_font_family: str = "Georgia"
     display_parish_font_size: int = 20
@@ -2057,7 +2084,7 @@ def get_theme(
             "proper" if parish.display_text_case == "sentence"
             else parish.display_text_case or "original"
         ),
-        "display_parish_name": parish.display_parish_name or "Parish Name",
+        "display_parish_name": parish_display_name(parish),
         "display_parish_color": parish.display_parish_color or "#8a7f6a",
         "display_parish_font_family": parish.display_parish_font_family or "Georgia",
         "display_parish_font_size": parish.display_parish_font_size or 20,
@@ -2108,7 +2135,7 @@ def update_theme(
         raise HTTPException(status_code=422, detail="Font size must be Auto or 20 to 120")
     if payload.display_text_case not in {"original", "upper", "lower", "proper"}:
         raise HTTPException(status_code=422, detail="Invalid text case")
-    display_parish_name = payload.display_parish_name.strip() or "Parish Name"
+    display_parish_name = payload.display_parish_name.strip() or parish.name
     if len(display_parish_name) > 120:
         raise HTTPException(status_code=422, detail="Parish display name must be 120 characters or fewer")
     if not re.fullmatch(r"#[0-9a-fA-F]{6}", payload.display_parish_color):

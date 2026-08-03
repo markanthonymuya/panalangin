@@ -44,7 +44,7 @@ class Parish(Base):
     display_font_bold        = Column(Boolean, default=False)
     display_text_case        = Column(String, default="original")
     display_parish_color       = Column(String, default="#8a7f6a")
-    display_parish_name        = Column(String, default="Parish Name")
+    display_parish_name        = Column(String, nullable=True)
     display_parish_font_family = Column(String, default="Georgia")
     display_parish_font_size   = Column(Integer, default=20)
     display_parish_font_bold   = Column(Boolean, default=True)

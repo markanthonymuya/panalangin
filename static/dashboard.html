@@ -879,7 +879,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           <div style="font-size:13px;font-weight:500;margin-bottom:14px">Parish Name on display</div>
           <div class="form-row">
             <label>Displayed text</label>
-            <input type="text" id="t-parish-name" maxlength="120" value="Parish Name"
+            <input type="text" id="t-parish-name" maxlength="120"
               placeholder="Parish name shown on the display" oninput="previewTheme()">
             <div style="font-size:11px;color:var(--muted);margin-top:5px">
               This changes only the display heading, not the parish account name.
@@ -3398,7 +3398,7 @@ function resetThemeDefaults() {
   document.getElementById('t-bold').checked = false;
   document.getElementById('t-text-case').value = 'original';
   document.getElementById('t-parish-font').value = 'Georgia';
-  document.getElementById('t-parish-name').value = 'Parish Name';
+  document.getElementById('t-parish-name').value = PARISH_NAME;
   document.getElementById('t-parish-size').value = 20;
   document.getElementById('t-parish-bold').checked = true;
   document.getElementById('t-parish-case').value = 'upper';
@@ -3449,7 +3449,7 @@ function previewTheme() {
   const parishFont = document.getElementById('t-parish-font').value;
   const parishSize = Number(document.getElementById('t-parish-size').value);
   prevParish.textContent = formatDisplayCase(
-    document.getElementById('t-parish-name').value || 'Parish Name',
+    document.getElementById('t-parish-name').value || PARISH_NAME,
     document.getElementById('t-parish-case').value
   );
   prevParish.style.color = document.getElementById('t-parish-color').value;

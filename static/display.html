@@ -748,18 +748,27 @@ function loadFromCache() {
 
 // ── Fetch from server ──
 async function fetchFromServer() {
-  setConn('syncing', 'syncing...');
+  if (!hasLoaded) setConn('syncing', 'connecting...');
   try {
+    const savedEtag = localStorage.getItem(ETAG_KEY);
+    const headers = savedEtag ? { 'If-None-Match': savedEtag } : {};
     const res = await fetch(
       FETCH_URL(),
-      { cache: 'no-store', signal: AbortSignal.timeout(8000) }
+      { cache: 'no-store', headers, signal: AbortSignal.timeout(8000) }
     );
+    if (res.status === 304) {
+      setConn('online', 'online · up to date');
+      return false;
+    }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
+    const responseEtag = res.headers.get('ETag');
+    if (responseEtag) localStorage.setItem(ETAG_KEY, responseEtag);
     applyData(json, false);
     const now = new Date().toLocaleTimeString('en-PH',
       { hour: '2-digit', minute: '2-digit' });
     setConn('online', 'online · synced ' + now);
+    return true;
   } catch(e) {
     const hasCached = loadFromCache();
     if (!hasCached) {
