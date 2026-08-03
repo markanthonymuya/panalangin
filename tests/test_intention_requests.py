@@ -1,6 +1,7 @@
 import os
 import unittest
 import base64
+import json
 from datetime import date, timedelta
 from types import SimpleNamespace
 
@@ -138,6 +139,67 @@ class IntentionRequestTests(unittest.TestCase):
                 db=self.db,
             )
         self.assertEqual(raised.exception.status_code, 422)
+
+    def test_registered_parish_name_is_legacy_display_name_fallback(self):
+        self.ctkp.display_parish_name = "Parish Name"
+        self.db.commit()
+
+        theme = main.get_theme(
+            current_user=self.ctkp_user,
+            db=self.db,
+        )
+        self.assertEqual(
+            theme["display_parish_name"],
+            "Christ the King Parish",
+        )
+
+    def test_display_etag_is_parish_specific_and_returns_not_modified(self):
+        first_request = main.Request({
+            "type": "http",
+            "method": "GET",
+            "path": "/api/ctkp/intentions",
+            "headers": [],
+        })
+        first_response = main.get_display_intentions(
+            "ctkp",
+            first_request,
+            db=self.db,
+        )
+        first_etag = first_response.headers["etag"]
+        first_payload = json.loads(first_response.body)
+        self.assertEqual(first_payload["parish"], "Christ the King Parish")
+
+        unchanged_request = main.Request({
+            "type": "http",
+            "method": "GET",
+            "path": "/api/ctkp/intentions",
+            "headers": [(b"if-none-match", first_etag.encode())],
+        })
+        unchanged_response = main.get_display_intentions(
+            "ctkp",
+            unchanged_request,
+            db=self.db,
+        )
+        self.assertEqual(unchanged_response.status_code, 304)
+
+        self.other.theme_bg = "#445566"
+        self.db.commit()
+        other_parish_change_response = main.get_display_intentions(
+            "ctkp",
+            unchanged_request,
+            db=self.db,
+        )
+        self.assertEqual(other_parish_change_response.status_code, 304)
+
+        self.ctkp.theme_bg = "#112233"
+        self.db.commit()
+        changed_response = main.get_display_intentions(
+            "ctkp",
+            unchanged_request,
+            db=self.db,
+        )
+        self.assertEqual(changed_response.status_code, 200)
+        self.assertNotEqual(changed_response.headers["etag"], first_etag)
 
     def test_group_search_returns_only_ranked_near_matches(self):
         today = date.today()
