@@ -1127,7 +1127,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     <!-- PAYMENTS TAB -->
     <div id="tab-payments" style="display:none">
       <div class="sa-section-title">Payment submissions</div>
-      <div class="sa-section-sub">GCash payments submitted by parishes awaiting confirmation</div>
+      <div class="sa-section-sub">Review submitted payments and view every parish's payment history</div>
       <div style="display:flex;gap:8px;margin-bottom:1rem">
         <button class="filter-quick active" id="pay-btn-pending"  onclick="loadPayments('pending')">Pending</button>
         <button class="filter-quick"        id="pay-btn-confirmed" onclick="loadPayments('confirmed')">Confirmed</button>
@@ -1195,7 +1195,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       <div style="font-size:13px;font-weight:500;margin-bottom:10px">All registered parishes</div>
       <table class="parishes-table">
         <thead><tr>
-          <th>Parish</th><th>Slug</th><th>Plan</th><th>Trial ends</th><th>Actions</th>
+          <th>Parish</th><th>Slug</th><th>Status / plan</th><th>Coverage ends</th><th>Actions</th>
         </tr></thead>
         <tbody id="parishes-tbody"></tbody>
       </table>
@@ -2332,6 +2332,7 @@ async function loadStatus() {
       document.getElementById('parish-display').textContent = data.parish_name || '';
     CURRENT_SLUG = data.slug || 'demo';
     if (data.dash_accent) applyDashAccent(data.dash_accent);
+      maybeShowSubscriptionReminder(data);
     }
 
     // Show View display button for parish roles
@@ -2365,8 +2366,37 @@ async function loadStatus() {
 }
 
 function showPayment() {
+  document.getElementById('pay-modal-title').textContent = 'Subscribe to Panalangin';
+  document.getElementById('pay-modal-sub').textContent = 'Choose a plan and pay via GCash';
+  document.getElementById('pay-email-link').href = 'mailto:markmuya@outlook.com?subject=Panalangin%20subscription';
   document.getElementById('pay-overlay').classList.add('open');
   selectPlan('monthly');
+}
+
+function maybeShowSubscriptionReminder(data) {
+  if (!data.reminder_due || !['admin','staff','secretary'].includes(data.role)) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const subscriptionKey = `${data.parish_name}:${data.plan}:${data.subscription_plan || 'trial'}:${data.ends_at}`;
+  if (data.days_left <= 7) {
+    // During the final seven days, remind once every day.
+    const dailyKey = `subscription-reminder-daily:${subscriptionKey}`;
+    if (localStorage.getItem(dailyKey) === today) return;
+    localStorage.setItem(dailyKey, today);
+  } else {
+    // Earlier 30-day and 15-day notices are shown only once per milestone.
+    const milestone = data.days_left <= 15 ? 15 : 30;
+    const milestoneKey = `subscription-reminder-milestone:${subscriptionKey}:${milestone}`;
+    if (localStorage.getItem(milestoneKey) === 'shown') return;
+    localStorage.setItem(milestoneKey, 'shown');
+  }
+  const kind = data.plan === 'trial' ? 'Free trial' : `${data.subscription_plan === 'annual' ? 'Annual' : 'Monthly'} subscription`;
+  document.getElementById('pay-modal-title').textContent = `${kind} ends in ${data.days_left} days`;
+  document.getElementById('pay-modal-sub').textContent = `Continue ${data.parish_name}'s access after ${fmtDate(data.ends_at.split('T')[0])}. Monthly is ₱200; annual is ₱2,000 with two months free.`;
+  const subject = encodeURIComponent(`Panalangin subscription — ${data.parish_name}`);
+  const body = encodeURIComponent(`Hello,\n\nI would like to renew ${data.parish_name}'s Panalangin subscription.\nCurrent end date: ${data.ends_at.split('T')[0]}\nPreferred plan: Monthly / Annual\n\nThank you.`);
+  document.getElementById('pay-email-link').href = `mailto:markmuya@outlook.com?subject=${subject}&body=${body}`;
+  document.getElementById('pay-overlay').classList.add('open');
+  selectPlan(data.subscription_plan === 'annual' ? 'annual' : 'monthly');
 }
 function closePayModal() {
   document.getElementById('pay-overlay').classList.remove('open');
@@ -2630,16 +2660,19 @@ async function loadParishes() {
   try {
     const res  = await fetch('/api/superadmin/parishes', { headers: authHeaders() });
     const data = await res.json();
+    window.SA_PARISHES = data;
     const tbody = document.getElementById('parishes-tbody');
     if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:12px;color:var(--muted)">No parishes yet.</td></tr>'; return; }
     tbody.innerHTML = data.map(p => `
       <tr>
         <td><strong>${p.name}</strong></td>
         <td style="font-family:monospace;font-size:12px">${p.slug}</td>
-        <td><span class="plan-badge plan-${p.plan}">${p.plan}</span></td>
-        <td style="font-size:12px;color:var(--muted)">${p.trial_ends_at ? fmtDate(p.trial_ends_at.split('T')[0]) : '—'}</td>
+        <td><span class="plan-badge plan-${p.plan}">${p.plan}</span>${p.subscription_plan ? `<div style="font-size:11px;margin-top:3px">${p.subscription_plan}</div>` : ''}</td>
+        <td style="font-size:12px;color:var(--muted)">${p.paid_until ? fmtDate(p.paid_until.split('T')[0]) : (p.trial_ends_at ? fmtDate(p.trial_ends_at.split('T')[0]) : '—')}</td>
         <td style="white-space:nowrap">
-          <button class="btn-edit" onclick="extendTrial(${p.id})">+30 days</button>
+          <button class="btn-edit" onclick="openTrialEditorById(${p.id})">Edit trial</button>
+          <button class="btn-edit" onclick="openPaymentRecorderById(${p.id})">Record payment</button>
+          <button class="btn-edit" onclick="openPaymentHistoryById(${p.id})">History</button>
           <button class="btn-del"  onclick="toggleParish(${p.id}, ${p.is_active})">${p.is_active ? 'Deactivate' : 'Activate'}</button>
         </td>
       </tr>`).join('');
@@ -2706,6 +2739,70 @@ async function extendTrial(id) {
   await fetch(`/api/superadmin/parishes/${id}?extend_trial_days=30`,
               { method: 'PUT', headers: authHeaders() });
   loadParishes();
+}
+
+function dateInputValue(value) {
+  return value ? value.split('T')[0] : new Date().toISOString().slice(0, 10);
+}
+function openSubscriptionAdmin(mode, parish) {
+  document.getElementById('sa-sub-parish-id').value = parish.id;
+  document.getElementById('sa-sub-parish').textContent = parish.name;
+  document.getElementById('sa-trial-fields').style.display = mode === 'trial' ? '' : 'none';
+  document.getElementById('sa-payment-fields').style.display = mode === 'payment' ? '' : 'none';
+  document.getElementById('sa-history-fields').style.display = mode === 'history' ? '' : 'none';
+  document.getElementById('sa-sub-msg').textContent = '';
+  document.getElementById('subscription-admin-overlay').classList.add('open');
+}
+function closeSubscriptionAdmin() { document.getElementById('subscription-admin-overlay').classList.remove('open'); }
+function superadminParish(id) { return (window.SA_PARISHES || []).find(p => p.id === id); }
+function openTrialEditorById(id) { const parish = superadminParish(id); if (parish) openTrialEditor(parish); }
+function openPaymentRecorderById(id) { const parish = superadminParish(id); if (parish) openPaymentRecorder(parish); }
+function openPaymentHistoryById(id) { const parish = superadminParish(id); if (parish) openPaymentHistory(id, parish.name); }
+function openTrialEditor(parish) {
+  openSubscriptionAdmin('trial', parish);
+  document.getElementById('sa-sub-title').textContent = 'Edit trial expiration';
+  document.getElementById('sa-trial-end').value = dateInputValue(parish.trial_ends_at);
+}
+function openPaymentRecorder(parish) {
+  openSubscriptionAdmin('payment', parish);
+  document.getElementById('sa-sub-title').textContent = 'Record confirmed payment';
+  document.getElementById('sa-pay-date').value = dateInputValue();
+  document.getElementById('sa-pay-start').value = dateInputValue(parish.paid_until && new Date(parish.paid_until) > new Date() ? parish.paid_until : null);
+  document.getElementById('sa-pay-ref').value = '';
+  document.getElementById('sa-pay-notes').value = '';
+}
+async function saveTrialEnd() {
+  const id = document.getElementById('sa-sub-parish-id').value;
+  const value = document.getElementById('sa-trial-end').value;
+  if (!value) return;
+  const res = await fetch(`/api/superadmin/parishes/${id}?trial_ends_at=${encodeURIComponent(value + 'T23:59:59')}`, {method:'PUT', headers:authHeaders()});
+  if (!res.ok) { document.getElementById('sa-sub-msg').textContent = 'Could not save trial date.'; return; }
+  closeSubscriptionAdmin(); loadParishes();
+}
+async function recordManualPayment() {
+  const payload = {
+    parish_id: Number(document.getElementById('sa-sub-parish-id').value),
+    plan: document.getElementById('sa-pay-plan').value,
+    reference_no: document.getElementById('sa-pay-ref').value.trim(),
+    payment_date: document.getElementById('sa-pay-date').value + 'T12:00:00',
+    coverage_start: document.getElementById('sa-pay-start').value + 'T00:00:00',
+    payment_method: document.getElementById('sa-pay-method').value,
+    notes: document.getElementById('sa-pay-notes').value.trim()
+  };
+  if (!payload.reference_no) { document.getElementById('sa-sub-msg').textContent = 'Reference number is required.'; return; }
+  const res = await fetch('/api/superadmin/payments/manual', {method:'POST', headers:authHeaders(), body:JSON.stringify(payload)});
+  const data = await res.json();
+  if (!res.ok) { document.getElementById('sa-sub-msg').textContent = data.detail || 'Could not record payment.'; return; }
+  closeSubscriptionAdmin(); loadParishes(); loadPendingPaymentCount();
+}
+async function openPaymentHistory(parishId, parishName) {
+  openSubscriptionAdmin('history', {id:parishId, name:parishName});
+  document.getElementById('sa-sub-title').textContent = 'Payment history';
+  const el = document.getElementById('sa-payment-history');
+  el.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+  const res = await fetch(`/api/superadmin/payments?parish_id=${parishId}`, {headers:authHeaders()});
+  const items = await res.json();
+  el.innerHTML = items.length ? items.map(p => `<div class="history-row" style="display:block;padding:10px 0"><strong>${p.plan === 'annual' ? 'Annual — ₱2,000' : 'Monthly — ₱200'}</strong> <span class="req-status ${p.status}">${p.status}</span><br><span>Reference: ${escHtml(p.reference_no)}</span><br><span>Paid: ${p.payment_date ? fmtDate(p.payment_date.split('T')[0]) : (p.created_at ? fmtDate(p.created_at.split('T')[0]) : '—')} · ${escHtml(p.payment_method || 'Not specified')}</span><br><span>Coverage: ${p.coverage_start ? fmtDate(p.coverage_start.split('T')[0]) : '—'} to ${p.coverage_end ? fmtDate(p.coverage_end.split('T')[0]) : '—'}</span>${p.notes ? `<br><span>Notes: ${escHtml(p.notes)}</span>` : ''}</div>`).join('') : '<p style="color:var(--muted)">No payments recorded.</p>';
 }
 
 async function toggleParish(id, active) {
@@ -3687,8 +3784,8 @@ function printToday() {
 <!-- ── PAYMENT MODAL ── -->
 <div class="modal-overlay-pay" id="pay-overlay">
   <div class="pay-modal">
-    <h2>Subscribe to Panalangin</h2>
-    <p class="pay-sub">Choose a plan and pay via GCash</p>
+    <h2 id="pay-modal-title">Subscribe to Panalangin</h2>
+    <p class="pay-sub" id="pay-modal-sub">Choose a plan and pay via GCash</p>
 
     <div class="pay-plans">
       <div class="pay-plan-btn selected" id="plan-monthly"
@@ -3738,9 +3835,42 @@ function printToday() {
     <div id="pay-msg" style="font-size:12px;margin-top:6px;min-height:1.2em;color:var(--danger)"></div>
 
     <div class="pay-footer">
+      <a id="pay-email-link" class="btn-cancel" style="text-decoration:none" href="mailto:markmuya@outlook.com">Email website owner</a>
       <button class="btn-cancel" onclick="closePayModal()">Cancel</button>
       <button class="btn-save" onclick="submitPayment()">Submit payment</button>
     </div>
+  </div>
+</div>
+
+<!-- SUPERADMIN SUBSCRIPTION MODAL -->
+<div class="modal-overlay-pay" id="subscription-admin-overlay">
+  <div class="pay-modal" style="max-width:520px;text-align:left">
+    <h2 id="sa-sub-title">Manage subscription</h2>
+    <p class="pay-sub" id="sa-sub-parish"></p>
+    <input type="hidden" id="sa-sub-parish-id">
+    <div id="sa-trial-fields">
+      <div class="form-row">
+        <label>Trial end date</label>
+        <input type="date" id="sa-trial-end">
+      </div>
+      <button class="btn-save" style="margin-top:10px" onclick="saveTrialEnd()">Save trial date</button>
+    </div>
+    <div id="sa-payment-fields" style="display:none">
+      <div class="gen-grid">
+        <div class="form-row"><label>Plan</label><select id="sa-pay-plan"><option value="monthly">Monthly — ₱200</option><option value="annual">Annual — ₱2,000</option></select></div>
+        <div class="form-row"><label>Payment date</label><input type="date" id="sa-pay-date"></div>
+      </div>
+      <div class="gen-grid">
+        <div class="form-row"><label>Coverage starts</label><input type="date" id="sa-pay-start"></div>
+        <div class="form-row"><label>Payment method</label><select id="sa-pay-method"><option>GCash</option><option>Bank transfer</option><option>Cash</option><option>Other</option></select></div>
+      </div>
+      <div class="form-row"><label>Reference number</label><input type="text" id="sa-pay-ref" placeholder="Required"></div>
+      <div class="form-row"><label>Notes</label><input type="text" id="sa-pay-notes" placeholder="Optional"></div>
+      <button class="btn-save" style="margin-top:10px" onclick="recordManualPayment()">Confirm and record payment</button>
+    </div>
+    <div id="sa-history-fields" style="display:none"><div id="sa-payment-history"></div></div>
+    <div id="sa-sub-msg" style="font-size:12px;margin-top:10px;color:var(--danger)"></div>
+    <div class="pay-footer"><button class="btn-cancel" onclick="closeSubscriptionAdmin()">Close</button></div>
   </div>
 </div>
 

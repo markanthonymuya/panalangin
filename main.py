@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload, selectinload
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, inspect, text
 from datetime import date, datetime, timedelta
 import re, secrets, asyncio, json, base64, binascii, hashlib
 from collections import defaultdict
@@ -19,6 +19,55 @@ from database import engine, get_db, Base
 # App setup
 # ─────────────────────────────────────────────
 Base.metadata.create_all(bind=engine)
+
+def ensure_subscription_schema():
+    """Small, idempotent migration for deployments without a migration runner."""
+    additions = {
+        "parishes": {
+            "subscription_plan": "VARCHAR(20)",
+        },
+        "payment_submissions": {
+            "payment_date": "TIMESTAMP",
+            "coverage_start": "TIMESTAMP",
+            "coverage_end": "TIMESTAMP",
+            "payment_method": "VARCHAR(50)",
+            "notes": "TEXT",
+        },
+    }
+    with engine.begin() as connection:
+        if connection.dialect.name == "postgresql":
+            for table_name, columns in additions.items():
+                for column_name, column_type in columns.items():
+                    connection.execute(text(
+                        f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS "
+                        f"{column_name} {column_type}"
+                    ))
+        else:
+            schema = inspect(connection)
+            for table_name, columns in additions.items():
+                if table_name not in schema.get_table_names():
+                    continue
+                existing = {column["name"] for column in schema.get_columns(table_name)}
+                for column_name, column_type in columns.items():
+                    if column_name not in existing:
+                        connection.execute(text(
+                            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                        ))
+        connection.execute(text("""
+            UPDATE parishes
+            SET subscription_plan = (
+                SELECT payment_submissions.plan
+                FROM payment_submissions
+                WHERE payment_submissions.parish_id = parishes.id
+                  AND payment_submissions.status = 'confirmed'
+                ORDER BY payment_submissions.confirmed_at DESC,
+                         payment_submissions.id DESC
+                LIMIT 1
+            )
+            WHERE subscription_plan IS NULL AND plan = 'active'
+        """))
+
+ensure_subscription_schema()
 
 app = FastAPI(title="Panalangin", description="Mass Intentions Display for Filipino Catholic Parishes")
 
@@ -1019,6 +1068,15 @@ def slugify(name: str) -> str:
     name = re.sub(r"[\s]+", "-", name)
     return re.sub(r"-+", "-", name).strip("-")
 
+def add_calendar_months(value: datetime, months: int) -> datetime:
+    """Add whole calendar months, clamping to the last valid day."""
+    import calendar
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, calendar.monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
 def parish_status(parish) -> dict:
     now = datetime.utcnow()
     days_left = None
@@ -1038,15 +1096,35 @@ def parish_status(parish) -> dict:
         if now > parish.grace_ends_at:
             parish.plan = "suspended"
     elif parish.plan == "active" and parish.paid_until:
+        days_left = max(0, (parish.paid_until - now).days)
         if now > parish.paid_until:
             parish.plan = "grace"
             parish.grace_ends_at = now + timedelta(days=7)
+
+    reminder_days = []
+    if parish.plan == "trial":
+        reminder_days = [30, 15]
+    elif parish.plan == "active" and parish.subscription_plan == "monthly":
+        reminder_days = [15, 7]
+    elif parish.plan == "active" and parish.subscription_plan == "annual":
+        reminder_days = [30, 15]
+
+    reminder_due = (
+        days_left is not None and days_left > 0 and
+        any(days_left <= threshold for threshold in reminder_days)
+    )
 
     return {
         "plan":      parish.plan,
         "days_left": days_left,
         "warning":   warning,
         "locked":    parish.plan == "suspended",
+        "subscription_plan": parish.subscription_plan,
+        "ends_at": (
+            parish.paid_until.isoformat() if parish.plan in ("active", "grace") and parish.paid_until
+            else parish.trial_ends_at.isoformat() if parish.trial_ends_at else None
+        ),
+        "reminder_due": reminder_due,
     }
 
 # ─────────────────────────────────────────────
@@ -1250,6 +1328,7 @@ def list_parishes(
             "trial_ends_at": p.trial_ends_at.isoformat() if p.trial_ends_at else None,
             "grace_ends_at": p.grace_ends_at.isoformat() if p.grace_ends_at else None,
             "paid_until":    p.paid_until.isoformat()    if p.paid_until    else None,
+            "subscription_plan": p.subscription_plan,
             "created_at":    p.created_at.isoformat()    if p.created_at    else None,
         }
         for p in parishes
@@ -1260,6 +1339,7 @@ def update_parish(
     parish_id: int,
     is_active: Optional[bool] = None,
     extend_trial_days: Optional[int] = None,
+    trial_ends_at: Optional[datetime] = None,
     current_user: models.User = Depends(require_superadmin),
     db: Session = Depends(get_db)
 ):
@@ -1273,6 +1353,11 @@ def update_parish(
         parish.trial_ends_at = base + timedelta(days=extend_trial_days)
         parish.grace_ends_at = parish.trial_ends_at + timedelta(days=7)
         parish.plan = "trial"
+    if trial_ends_at is not None:
+        parish.trial_ends_at = trial_ends_at
+        parish.grace_ends_at = trial_ends_at + timedelta(days=7)
+        if parish.plan != "active":
+            parish.plan = "trial"
     db.commit()
     return {"message": "Parish updated"}
 
@@ -1755,6 +1840,15 @@ class PaymentCreate(BaseModel):
     plan:         str   # monthly | annual
     reference_no: str
 
+class ManualPaymentCreate(BaseModel):
+    parish_id: int
+    plan: str
+    reference_no: str
+    payment_date: Optional[datetime] = None
+    coverage_start: Optional[datetime] = None
+    payment_method: Optional[str] = "Other"
+    notes: Optional[str] = None
+
 @app.post("/api/dashboard/payment", status_code=201)
 def submit_payment(
     payload: PaymentCreate,
@@ -1796,6 +1890,7 @@ def submit_payment(
 @app.get("/api/superadmin/payments")
 def list_payments(
     status: Optional[str] = None,
+    parish_id: Optional[int] = None,
     current_user: models.User = Depends(require_superadmin),
     db: Session = Depends(get_db)
 ):
@@ -1804,6 +1899,8 @@ def list_payments(
     )
     if status:
         q = q.filter(models.PaymentSubmission.status == status)
+    if parish_id is not None:
+        q = q.filter(models.PaymentSubmission.parish_id == parish_id)
     payments = q.all()
     result = []
     for p in payments:
@@ -1820,8 +1917,64 @@ def list_payments(
             "months_added": p.months_added,
             "created_at":   p.created_at.isoformat() if p.created_at else None,
             "confirmed_at": p.confirmed_at.isoformat() if p.confirmed_at else None,
+            "payment_date": p.payment_date.isoformat() if p.payment_date else None,
+            "coverage_start": p.coverage_start.isoformat() if p.coverage_start else None,
+            "coverage_end": p.coverage_end.isoformat() if p.coverage_end else None,
+            "payment_method": p.payment_method,
+            "notes": p.notes,
         })
     return result
+
+@app.post("/api/superadmin/payments/manual", status_code=201)
+def record_manual_payment(
+    payload: ManualPaymentCreate,
+    current_user: models.User = Depends(require_superadmin),
+    db: Session = Depends(get_db),
+):
+    if payload.plan not in ("monthly", "annual"):
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    if not payload.reference_no.strip():
+        raise HTTPException(status_code=400, detail="Reference number is required")
+    parish = db.query(models.Parish).filter(models.Parish.id == payload.parish_id).first()
+    if not parish:
+        raise HTTPException(status_code=404, detail="Parish not found")
+    duplicate = db.query(models.PaymentSubmission).filter(
+        models.PaymentSubmission.reference_no == payload.reference_no.strip(),
+        models.PaymentSubmission.status.in_(("pending", "confirmed")),
+    ).first()
+    if duplicate:
+        raise HTTPException(status_code=400, detail="This reference number is already recorded")
+
+    now = datetime.utcnow()
+    start = payload.coverage_start or (
+        parish.paid_until if parish.paid_until and parish.paid_until > now else now
+    )
+    months = 1 if payload.plan == "monthly" else 12
+    end = add_calendar_months(start, months)
+    payment = models.PaymentSubmission(
+        parish_id=parish.id,
+        plan=payload.plan,
+        amount=200 if payload.plan == "monthly" else 2000,
+        reference_no=payload.reference_no.strip(),
+        submitted_by=current_user.id,
+        status="confirmed",
+        confirmed_by=current_user.id,
+        confirmed_at=now,
+        months_added=months,
+        payment_date=payload.payment_date or now,
+        coverage_start=start,
+        coverage_end=end,
+        payment_method=(payload.payment_method or "Other").strip(),
+        notes=(payload.notes or "").strip() or None,
+    )
+    parish.paid_until = end
+    parish.subscription_plan = payload.plan
+    parish.plan = "active"
+    parish.grace_ends_at = end + timedelta(days=7)
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+    return {"id": payment.id, "message": "Payment recorded", "paid_until": end.isoformat()}
 
 @app.post("/api/superadmin/payments/{payment_id}/confirm")
 def confirm_payment(
@@ -1846,13 +1999,18 @@ def confirm_payment(
     # Extend subscription
     now   = datetime.utcnow()
     base  = parish.paid_until if parish.paid_until and parish.paid_until > now             else (parish.trial_ends_at if parish.trial_ends_at and parish.trial_ends_at > now             else now)
-    parish.paid_until    = base + timedelta(days=30 * payment.months_added)
+    parish.paid_until    = add_calendar_months(base, payment.months_added)
+    parish.subscription_plan = payment.plan
     parish.plan          = "active"
     parish.grace_ends_at = parish.paid_until + timedelta(days=7)
 
     payment.status       = "confirmed"
     payment.confirmed_by = current_user.id
     payment.confirmed_at = now
+    payment.payment_date = payment.payment_date or payment.created_at or now
+    payment.coverage_start = base
+    payment.coverage_end = parish.paid_until
+    payment.payment_method = payment.payment_method or "GCash"
     db.commit()
 
     return {
