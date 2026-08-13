@@ -27,6 +27,7 @@ class Parish(Base):
     trial_ends_at  = Column(DateTime, nullable=True)
     grace_ends_at  = Column(DateTime, nullable=True)
     paid_until     = Column(DateTime, nullable=True)
+    subscription_plan = Column(String, nullable=True)  # monthly | annual
     # Theme customization
     theme_bg       = Column(String, default="#080c18")   # display background
     theme_text     = Column(String, default="#f0ead6")   # display name text
@@ -250,6 +251,11 @@ class PaymentSubmission(Base):
     confirmed_by   = Column(Integer, ForeignKey("users.id"), nullable=True)
     confirmed_at   = Column(DateTime, nullable=True)
     months_added   = Column(Integer, nullable=True)    # 1 or 12
+    payment_date   = Column(DateTime, nullable=True)
+    coverage_start = Column(DateTime, nullable=True)
+    coverage_end   = Column(DateTime, nullable=True)
+    payment_method = Column(String, nullable=True)
+    notes          = Column(Text, nullable=True)
     created_at     = Column(DateTime, server_default=func.now())
 
 
