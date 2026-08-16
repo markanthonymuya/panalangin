@@ -195,6 +195,39 @@ html, body {
   pointer-events: all;
 }
 #search-btn:hover { background: rgba(201,185,122,0.25); }
+#category-manage-btn {
+  display:none; position:absolute; bottom:20px; right:76px;
+  height:44px; padding:0 14px; border-radius:22px;
+  background:rgba(201,185,122,0.15); border:1px solid rgba(201,185,122,0.3);
+  color:var(--gold); font:12px Georgia,serif; letter-spacing:.06em;
+  cursor:pointer; z-index:50; pointer-events:all;
+}
+#category-manage-btn:hover { background:rgba(201,185,122,0.25); }
+#category-manage-overlay {
+  position:fixed; inset:0; z-index:110; display:none; align-items:center; justify-content:center;
+  padding:24px; background:rgba(8,12,24,.96); font-family:Georgia,serif;
+}
+#category-manage-overlay.open { display:flex; }
+.category-manage-card {
+  width:100%; max-width:520px; max-height:82vh; overflow:auto;
+  background:#0f1424; border:1px solid rgba(201,185,122,.3);
+  border-radius:14px; padding:24px; color:var(--text);
+}
+.category-manage-card h2 { margin:0 0 6px; color:var(--gold); font-size:20px; }
+.category-manage-card p { margin:0 0 18px; color:var(--text-dim); font-size:13px; line-height:1.5; }
+#display-category-list { display:flex; flex-direction:column; gap:7px; }
+.display-category-row {
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:10px 12px; border:1px solid rgba(201,185,122,.16); border-radius:7px;
+}
+.display-category-row.hidden-category { opacity:.55; }
+.category-manage-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+.category-manage-actions button {
+  padding:9px 16px; border-radius:7px; cursor:pointer; font:13px Georgia,serif;
+}
+#display-category-cancel { background:transparent; color:var(--text-dim); border:1px solid rgba(201,185,122,.2); }
+#display-category-save { background:var(--gold); color:#080c18; border:0; }
+#display-category-msg { min-height:1.2em; margin-top:10px; color:#d9a6a6; font-size:12px; }
 
 /* ── SEARCH OVERLAY ── */
 #search-overlay {
@@ -911,8 +944,102 @@ function fmtSearchDate(start, end) {
   return fmt(s) + ' – ' + fmt(e);
 }
 
+// ── Authenticated category visibility shortcut ──
+let displayCategorySettings = [];
+
+async function setupCategoryManager() {
+  const token = localStorage.getItem('pn_token');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/dashboard/status', {
+      headers: { Authorization: `Bearer ${token}` }, cache: 'no-store'
+    });
+    if (!res.ok) return;
+    const status = await res.json();
+    if (status.slug !== PARISH_SLUG || !['admin','staff','secretary'].includes(status.role)) return;
+    document.getElementById('category-manage-btn').style.display = 'block';
+  } catch(e) {}
+}
+
+async function openCategoryManager() {
+  const token = localStorage.getItem('pn_token');
+  if (!token) return;
+  pauseTicker();
+  const overlay = document.getElementById('category-manage-overlay');
+  overlay.classList.add('open');
+  document.getElementById('display-category-msg').textContent = '';
+  try {
+    const res = await fetch('/api/dashboard/categories/settings', {
+      headers: { Authorization: `Bearer ${token}` }, cache: 'no-store'
+    });
+    if (!res.ok) throw new Error();
+    displayCategorySettings = await res.json();
+    renderDisplayCategorySettings();
+  } catch(e) {
+    document.getElementById('display-category-list').innerHTML = '';
+    document.getElementById('display-category-msg').textContent = 'Could not load category settings.';
+  }
+}
+
+function renderDisplayCategorySettings() {
+  const list = document.getElementById('display-category-list');
+  list.innerHTML = '';
+  displayCategorySettings.forEach(category => {
+    const row = document.createElement('label');
+    row.className = 'display-category-row' + (category.is_active ? '' : ' hidden-category');
+    const name = document.createElement('span');
+    name.textContent = category.label;
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = category.is_active;
+    checkbox.addEventListener('change', () => {
+      category.is_active = checkbox.checked;
+      renderDisplayCategorySettings();
+    });
+    row.append(name, checkbox);
+    list.appendChild(row);
+  });
+}
+
+function closeCategoryManager() {
+  document.getElementById('category-manage-overlay').classList.remove('open');
+  resumeTicker();
+}
+
+async function saveDisplayCategorySettings() {
+  const token = localStorage.getItem('pn_token');
+  const msg = document.getElementById('display-category-msg');
+  const button = document.getElementById('display-category-save');
+  button.disabled = true;
+  msg.style.color = 'var(--text-dim)';
+  msg.textContent = 'Saving...';
+  try {
+    const res = await fetch('/api/dashboard/categories/settings', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        categories: displayCategorySettings.map(category => ({
+          id: category.id, is_active: category.is_active
+        }))
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Could not save category settings.');
+    closeCategoryManager();
+    await fetchFromServer();
+  } catch(e) {
+    msg.style.color = '#d9a6a6';
+    msg.textContent = e.message || 'Could not save category settings.';
+  } finally {
+    button.disabled = false;
+  }
+}
+
+window.addEventListener('DOMContentLoaded', setupCategoryManager);
+
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('category-manage-overlay').classList.contains('open')) { closeCategoryManager(); return; }
   if (e.key === 'Escape' && searchOpen) { closeSearch(); return; }
   if ((e.key === 'f' || e.key === 'F') && !searchOpen) { toggleFS(); return; }
   if ((e.key === 's' || e.key === 'S') && !searchOpen) { openSearch(); return; }
@@ -938,7 +1065,22 @@ document.addEventListener('keydown', e => {
 })();
 </script>
 <!-- ── SEARCH BUTTON ── -->
+<button id="category-manage-btn" onclick="openCategoryManager()" title="Show or hide categories">Categories</button>
 <button id="search-btn" onclick="openSearch()" title="Search intentions">&#9906;</button>
+
+<!-- ── AUTHENTICATED CATEGORY VISIBILITY ── -->
+<div id="category-manage-overlay">
+  <div class="category-manage-card">
+    <h2>Displayed Categories</h2>
+    <p>Show or hide Mass Intention categories for this parish. Hidden categories are also removed from the encoding dropdowns.</p>
+    <div id="display-category-list"></div>
+    <div id="display-category-msg"></div>
+    <div class="category-manage-actions">
+      <button id="display-category-cancel" onclick="closeCategoryManager()">Cancel</button>
+      <button id="display-category-save" onclick="saveDisplayCategorySettings()">Save</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── SEARCH OVERLAY ── -->
 <div id="search-overlay">

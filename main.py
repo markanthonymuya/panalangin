@@ -201,7 +201,7 @@ def seed_demo(db: Session):
 Base.metadata.create_all(bind=engine)
 
 def sync_categories(db: Session):
-    """Add missing default categories, fix display_order, and run label migrations."""
+    """Add missing defaults and migrate labels without overwriting parish order."""
     parishes = db.query(models.Parish).all()
     for parish in parishes:
         existing = {
@@ -249,17 +249,18 @@ def sync_categories(db: Session):
                 old.label = "Fast Recovery"
                 existing["Fast Recovery"] = old
 
-        for order, label in enumerate(DEFAULT_CATEGORIES):
-            if label in existing:
-                cat = existing[label]
-                if cat.display_order != order:
-                    cat.display_order = order
-            else:
+        next_order = max(
+            (category.display_order for category in existing.values()),
+            default=-1,
+        ) + 1
+        for label in DEFAULT_CATEGORIES:
+            if label not in existing:
                 db.add(models.Category(
                     parish_id=parish.id,
                     label=label,
-                    display_order=order
+                    display_order=next_order,
                 ))
+                next_order += 1
     db.commit()
 
 with next(get_db()) as _db:
@@ -380,6 +381,16 @@ def list_intentions(
     ]
 
 # Get categories for the logged-in parish
+class CategoryOrderUpdate(BaseModel):
+    category_ids: list[int]
+
+class CategorySetting(BaseModel):
+    id: int
+    is_active: bool
+
+class CategorySettingsUpdate(BaseModel):
+    categories: list[CategorySetting]
+
 @app.get("/api/dashboard/categories")
 def list_categories(
     current_user: models.User = Depends(get_current_user),
@@ -388,8 +399,106 @@ def list_categories(
     cats = db.query(models.Category).filter(
         models.Category.parish_id == current_user.parish_id,
         models.Category.is_active == True
-    ).order_by(models.Category.display_order).all()
-    return [{"id": c.id, "label": c.label} for c in cats]
+    ).order_by(models.Category.display_order, models.Category.id).all()
+    return [
+        {
+            "id": c.id,
+            "label": c.label,
+            "display_order": c.display_order,
+            "is_active": True,
+        }
+        for c in cats
+    ]
+
+@app.get("/api/dashboard/categories/settings")
+def get_category_settings(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    categories = db.query(models.Category).filter(
+        models.Category.parish_id == current_user.parish_id,
+    ).order_by(models.Category.display_order, models.Category.id).all()
+    return [
+        {
+            "id": category.id,
+            "label": category.label,
+            "display_order": category.display_order,
+            "is_active": bool(category.is_active),
+        }
+        for category in categories
+    ]
+
+@app.put("/api/dashboard/categories/settings")
+def update_category_settings(
+    payload: CategorySettingsUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    categories = db.query(models.Category).filter(
+        models.Category.parish_id == current_user.parish_id,
+    ).all()
+    parish_ids = {category.id for category in categories}
+    submitted_ids = [setting.id for setting in payload.categories]
+    if len(submitted_ids) != len(set(submitted_ids)):
+        raise HTTPException(status_code=422, detail="Category settings contain duplicates")
+    if set(submitted_ids) != parish_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="Category settings must include every category in this parish",
+        )
+    if categories and not any(setting.is_active for setting in payload.categories):
+        raise HTTPException(status_code=422, detail="At least one category must remain enabled")
+    by_id = {category.id: category for category in categories}
+    for display_order, setting in enumerate(payload.categories):
+        category = by_id[setting.id]
+        category.display_order = display_order
+        category.is_active = setting.is_active
+    db.commit()
+    return {"message": "Category settings saved"}
+
+@app.put("/api/dashboard/categories/order")
+def update_category_order(
+    payload: CategoryOrderUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    categories = db.query(models.Category).filter(
+        models.Category.parish_id == current_user.parish_id,
+    ).all()
+    parish_ids = {category.id for category in categories}
+    submitted_ids = payload.category_ids
+    if len(submitted_ids) != len(set(submitted_ids)):
+        raise HTTPException(status_code=422, detail="Category order contains duplicates")
+    if set(submitted_ids) != parish_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="Category order must include every category in this parish",
+        )
+    by_id = {category.id: category for category in categories}
+    for display_order, category_id in enumerate(submitted_ids):
+        by_id[category_id].display_order = display_order
+    db.commit()
+    return {"message": "Category order saved"}
+
+@app.post("/api/dashboard/categories/order/reset")
+def reset_category_order(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    categories = db.query(models.Category).filter(
+        models.Category.parish_id == current_user.parish_id,
+    ).all()
+    default_positions = {label: index for index, label in enumerate(DEFAULT_CATEGORIES)}
+    categories.sort(key=lambda category: (
+        0 if category.label in default_positions else 1,
+        default_positions.get(category.label, category.display_order),
+        category.display_order,
+        category.id,
+    ))
+    for display_order, category in enumerate(categories):
+        category.display_order = display_order
+    db.commit()
+    return {"message": "Default category order restored"}
 
 # ─────────────────────────────────────────────
 # SWEEP — expired intention cleanup
@@ -948,7 +1057,7 @@ def get_display_intentions(
         categories = db.query(models.Category).filter(
             models.Category.parish_id == parish.id,
             models.Category.is_active == True
-        ).order_by(models.Category.display_order).all()
+        ).order_by(models.Category.display_order, models.Category.id).all()
 
         result = {
             "parish":       parish_display_name(parish),
@@ -2388,6 +2497,7 @@ def search_intentions(
         models.Intention.is_active  == True,
         models.Intention.start_date <= week_end,
         models.Intention.end_date   >= today,
+        models.Category.is_active   == True,
         models.Intention.name.ilike(f"%{q.strip()}%")
     ).order_by(models.Intention.name).all()
 

@@ -410,6 +410,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 .history-row { display:flex; justify-content:space-between; font-size:12px;
                padding:5px 0; border-bottom:1px solid #f0ede7; color:var(--muted); }
 .history-row span { font-family:monospace; color:var(--text); }
+.category-order-list { display:flex; flex-direction:column; gap:7px; }
+.category-order-item {
+  display:grid; grid-template-columns:28px 1fr auto auto; gap:8px; align-items:center;
+  padding:9px 10px; border:1px solid var(--border); border-radius:7px;
+  background:var(--card); cursor:grab;
+}
+.category-order-item.dragging { opacity:.45; }
+.category-order-item.disabled { opacity:.58; background:var(--bg); }
+.category-drag-handle { color:var(--muted); font-size:16px; text-align:center; }
+.category-order-arrows { display:flex; gap:3px; }
+.category-order-arrows button {
+  width:27px; height:27px; border:1px solid var(--border); border-radius:5px;
+  background:var(--card); cursor:pointer; color:var(--muted);
+}
+.category-toggle { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
 
 /* ── PRINT BUTTON ── */
 .btn-print-today {
@@ -994,6 +1009,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         </div>
       </div>
 
+      <div class="form-card" style="margin-top:1.2rem;max-width:640px">
+        <div style="font-size:13px;font-weight:500;margin-bottom:5px">Mass Intention Category Order</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5">
+          Drag categories or use the arrows to arrange them from first to last. Disable a category to hide it from the public display and all encoding dropdowns. These settings affect only this parish.
+        </div>
+        <div id="category-order-list" class="category-order-list"></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+          <button class="btn-save" id="category-order-save" onclick="saveCategorySettings()">Save category settings</button>
+          <button class="btn-cancel" onclick="restoreDefaultCategoryOrder()">Restore default order</button>
+        </div>
+        <div id="category-order-msg" style="font-size:12px;margin-top:8px;min-height:1.2em"></div>
+      </div>
+
       <div style="margin-top:1.2rem;max-width:640px">
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
           <button id="theme-save-btn" class="btn-submit" onclick="saveTheme()">Save theme</button>
@@ -1287,6 +1315,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 const API = '';
 let TOKEN        = '';
 let CATEGORIES   = [];
+let CATEGORY_SETTINGS = [];
 let CURRENT_SLUG = 'demo';
 let ROLE         = '';
 let LOCKED       = false;
@@ -1505,7 +1534,7 @@ function showTab(name) {
   if (name === 'parishes') { loadParishes(); }
   if (name === 'settings')  { loadSettings(); }
   if (name === 'users')     { loadUsers(); }
-  if (name === 'theme')     { loadTheme(); }
+  if (name === 'theme')     { loadTheme(); loadCategorySettings(); }
   if (name === 'codes')    { loadCodes(); }
   if (name === 'add')    {
     setDefaultDates();
@@ -1553,6 +1582,124 @@ function populateCatSelects() {
       .join('');
   }
   handleCategoryChange();
+}
+
+let draggedCategoryId = null;
+
+async function loadCategorySettings() {
+  const list = document.getElementById('category-order-list');
+  if (!list) return;
+  try {
+    const res = await fetch('/api/dashboard/categories/settings', { headers: authHeaders() });
+    if (!res.ok) throw new Error();
+    CATEGORY_SETTINGS = await res.json();
+    renderCategorySettings();
+  } catch(e) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--danger)">Could not load categories.</div>';
+  }
+}
+
+function renderCategorySettings() {
+  const list = document.getElementById('category-order-list');
+  if (!list) return;
+  list.innerHTML = CATEGORY_SETTINGS.map((category, index) => `
+    <div class="category-order-item ${category.is_active ? '' : 'disabled'}"
+         draggable="true" data-category-id="${category.id}"
+         ondragstart="startCategoryDrag(event, ${category.id})"
+         ondragover="event.preventDefault()"
+         ondrop="dropCategory(event, ${category.id})">
+      <span class="category-drag-handle" title="Drag to reorder">☰</span>
+      <span>${escHtml(category.label)}</span>
+      <div class="category-order-arrows">
+        <button type="button" onclick="moveCategory(${index}, -1)" ${index === 0 ? 'disabled' : ''} title="Move up">↑</button>
+        <button type="button" onclick="moveCategory(${index}, 1)" ${index === CATEGORY_SETTINGS.length - 1 ? 'disabled' : ''} title="Move down">↓</button>
+      </div>
+      <label class="category-toggle">
+        <input type="checkbox" ${category.is_active ? 'checked' : ''}
+          onchange="setCategoryEnabled(${category.id}, this.checked)">
+        ${category.is_active ? 'Shown' : 'Hidden'}
+      </label>
+    </div>`).join('');
+}
+
+function startCategoryDrag(event, categoryId) {
+  draggedCategoryId = categoryId;
+  event.dataTransfer.effectAllowed = 'move';
+  event.currentTarget.classList.add('dragging');
+  event.currentTarget.addEventListener('dragend', () => {
+    event.currentTarget.classList.remove('dragging');
+  }, { once:true });
+}
+
+function dropCategory(event, targetId) {
+  event.preventDefault();
+  if (draggedCategoryId === null || draggedCategoryId === targetId) return;
+  const from = CATEGORY_SETTINGS.findIndex(category => category.id === draggedCategoryId);
+  const to = CATEGORY_SETTINGS.findIndex(category => category.id === targetId);
+  const [moved] = CATEGORY_SETTINGS.splice(from, 1);
+  CATEGORY_SETTINGS.splice(to, 0, moved);
+  draggedCategoryId = null;
+  renderCategorySettings();
+}
+
+function moveCategory(index, direction) {
+  const target = index + direction;
+  if (target < 0 || target >= CATEGORY_SETTINGS.length) return;
+  [CATEGORY_SETTINGS[index], CATEGORY_SETTINGS[target]] =
+    [CATEGORY_SETTINGS[target], CATEGORY_SETTINGS[index]];
+  renderCategorySettings();
+}
+
+function setCategoryEnabled(categoryId, enabled) {
+  const category = CATEGORY_SETTINGS.find(item => item.id === categoryId);
+  if (!category) return;
+  category.is_active = enabled;
+  renderCategorySettings();
+}
+
+async function saveCategorySettings() {
+  const msg = document.getElementById('category-order-msg');
+  const btn = document.getElementById('category-order-save');
+  btn.disabled = true;
+  msg.style.color = 'var(--muted)';
+  msg.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/dashboard/categories/settings', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        categories: CATEGORY_SETTINGS.map(category => ({
+          id: category.id,
+          is_active: category.is_active
+        }))
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Could not save category settings.');
+    msg.style.color = 'var(--accent)';
+    msg.textContent = '✓ Category order and visibility saved for this parish.';
+    await loadCategories();
+    await loadCategorySettings();
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Could not save category settings.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function restoreDefaultCategoryOrder() {
+  if (!confirm('Restore the default category order? Visibility settings will stay unchanged.')) return;
+  const res = await fetch('/api/dashboard/categories/order/reset', {
+    method: 'POST', headers: authHeaders()
+  });
+  if (res.ok) {
+    await loadCategories();
+    await loadCategorySettings();
+    const msg = document.getElementById('category-order-msg');
+    msg.style.color = 'var(--accent)';
+    msg.textContent = '✓ Default category order restored.';
+  }
 }
 
 // ── TODAY tab ──

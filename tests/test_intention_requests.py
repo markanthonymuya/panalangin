@@ -66,6 +66,68 @@ class IntentionRequestTests(unittest.TestCase):
         self.db.close()
         self.engine.dispose()
 
+    def test_category_settings_are_ordered_and_scoped_to_current_parish(self):
+        result = main.update_category_settings(
+            main.CategorySettingsUpdate(categories=[
+                main.CategorySetting(id=self.death_category.id, is_active=True),
+                main.CategorySetting(id=self.ctkp_category.id, is_active=True),
+                main.CategorySetting(id=self.gift_category.id, is_active=False),
+            ]),
+            current_user=self.ctkp_user,
+            db=self.db,
+        )
+        self.assertEqual(result["message"], "Category settings saved")
+        active = main.list_categories(current_user=self.ctkp_user, db=self.db)
+        self.assertEqual(
+            [category["label"] for category in active],
+            ["Death Anniversary", "Thanksgiving"],
+        )
+        self.db.refresh(self.other_category)
+        self.assertTrue(self.other_category.is_active)
+        self.assertEqual(self.other_category.display_order, 0)
+
+    def test_category_settings_reject_another_parish_category(self):
+        with self.assertRaises(HTTPException) as raised:
+            main.update_category_settings(
+                main.CategorySettingsUpdate(categories=[
+                    main.CategorySetting(id=self.ctkp_category.id, is_active=True),
+                    main.CategorySetting(id=self.gift_category.id, is_active=True),
+                    main.CategorySetting(id=self.other_category.id, is_active=True),
+                ]),
+                current_user=self.ctkp_user,
+                db=self.db,
+            )
+        self.assertEqual(raised.exception.status_code, 422)
+
+    def test_startup_category_sync_preserves_parish_order(self):
+        self.ctkp_category.display_order = 9
+        self.gift_category.display_order = 0
+        self.death_category.display_order = 1
+        self.db.commit()
+        main.sync_categories(self.db)
+        self.db.refresh(self.ctkp_category)
+        self.db.refresh(self.gift_category)
+        self.db.refresh(self.death_category)
+        self.assertEqual(self.ctkp_category.display_order, 9)
+        self.assertEqual(self.gift_category.display_order, 0)
+        self.assertEqual(self.death_category.display_order, 1)
+
+    def test_disabled_category_is_hidden_from_public_search(self):
+        today = date.today()
+        self.db.add(models.Intention(
+            parish_id=self.ctkp.id,
+            category_id=self.gift_category.id,
+            name="Hidden Birthday Name",
+            offered_by="Test Offeror",
+            start_date=today,
+            end_date=today,
+            is_active=True,
+        ))
+        self.gift_category.is_active = False
+        self.db.commit()
+        result = main.search_intentions("ctkp", q="Hidden", db=self.db)
+        self.assertEqual(result, {"results": [], "total": 0})
+
     def test_display_settings_and_background_are_saved(self):
         image_data = "data:image/png;base64," + base64.b64encode(b"small-image").decode()
         result = main.update_theme(
