@@ -678,21 +678,6 @@ def create_batch_intention_request(
     categories_by_id = {category.id: category for category in categories}
     if set(categories_by_id) != category_ids:
         raise HTTPException(status_code=400, detail="Invalid category")
-    if any(
-        categories_by_id[item.category_id].label in {
-            "Gift of Life",
-            "Death Anniversary",
-        }
-        for item in payload.intentions
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Gift of Life and Death Anniversary must use the existing "
-                "form because each name requires its own date"
-            ),
-        )
-
     cleaned_items = []
     for item in payload.intentions:
         name = item.name.strip()

@@ -424,29 +424,40 @@ class IntentionRequestTests(unittest.TestCase):
             {(date(2026, 8, 1), date(2026, 8, 31))},
         )
 
-    def test_quick_group_create_rejects_gift_of_life(self):
-        with self.assertRaises(HTTPException) as raised:
-            main.create_batch_intention_request(
-                main.BatchIntentionRequestCreate(
-                    offered_by="Birthday Offeror",
-                    start_date=date(2026, 8, 1),
-                    end_date=date(2026, 8, 31),
-                    intentions=[
-                        main.BatchIntentionItem(
-                            name="Birthday Name",
-                            category_id=self.gift_category.id,
-                        ),
-                    ],
-                ),
-                current_user=self.ctkp_user,
-                db=self.db,
-            )
-        self.assertEqual(raised.exception.status_code, 400)
-        self.assertEqual(
+    def test_quick_group_create_supports_gift_of_life_and_death_anniversary_ranges(self):
+        result = main.create_batch_intention_request(
+            main.BatchIntentionRequestCreate(
+                offered_by="Family Offeror",
+                start_date=date(2026, 8, 1),
+                end_date=date(2026, 8, 31),
+                intentions=[
+                    main.BatchIntentionItem(
+                        name="Birthday Name",
+                        category_id=self.gift_category.id,
+                    ),
+                    main.BatchIntentionItem(
+                        name="Anniversary Name",
+                        category_id=self.death_category.id,
+                    ),
+                ],
+            ),
+            current_user=self.ctkp_user,
+            db=self.db,
+        )
+        intentions = (
             self.db.query(models.Intention)
-            .filter(models.Intention.parish_id == self.ctkp.id)
-            .count(),
-            0,
+            .filter(models.Intention.offering_request_id == result["request_id"])
+            .order_by(models.Intention.id)
+            .all()
+        )
+        self.assertEqual(result["created"], 2)
+        self.assertEqual(
+            {item.category_id for item in intentions},
+            {self.gift_category.id, self.death_category.id},
+        )
+        self.assertEqual(
+            {(item.start_date, item.end_date) for item in intentions},
+            {(date(2026, 8, 1), date(2026, 8, 31))},
         )
 
     def test_gift_of_life_uses_one_exact_date_per_name(self):
