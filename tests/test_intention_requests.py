@@ -4,12 +4,13 @@ import base64
 import json
 from datetime import date, timedelta
 from types import SimpleNamespace
+from unittest.mock import patch
 
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["SEED_DEMO"] = "false"
 
 from fastapi import HTTPException
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -185,6 +186,55 @@ class IntentionRequestTests(unittest.TestCase):
         self.assertEqual(self.ctkp.display_transition_font_family, "Garamond")
         self.assertEqual(self.ctkp.display_transition_font_size, 36)
         self.assertTrue(self.ctkp.display_transition_font_bold)
+
+    def test_display_formatting_round_trips_and_refreshes_display(self):
+        prefixes = ('', 'parish_', 'title_', 'transition_')
+        previous_etag = None
+        for bold, italic in ((False, False), (True, False), (False, True), (True, True), (False, False)):
+            with self.subTest(bold=bold, italic=italic):
+                settings = {
+                    f'display_{prefix}font_{style}': enabled
+                    for prefix in prefixes
+                    for style, enabled in (('bold', bold), ('italic', italic))
+                }
+                main.update_theme(main.ThemeUpdate(
+                    theme_bg='#080c18', theme_text='#f0ead6',
+                    theme_accent='#c9b97a', theme_label='#c9b97a',
+                    dash_accent='#2d5a3d', **settings,
+                ), current_user=self.ctkp_user, db=self.db)
+                self.db.expire_all()
+                saved = main.get_theme(current_user=self.ctkp_user, db=self.db)
+                response = main.get_display_intentions('ctkp', main.Request({
+                    'type': 'http', 'method': 'GET', 'path': '/api/ctkp/intentions',
+                    'headers': [(b'if-none-match', previous_etag.encode())] if previous_etag else [],
+                }), db=self.db)
+                self.assertEqual(response.status_code, 200)
+                displayed = json.loads(response.body)
+                for field, expected in settings.items():
+                    self.assertEqual(saved[field], expected)
+                    self.assertEqual(displayed[field], expected)
+                self.assertNotEqual(response.headers['etag'], previous_etag)
+                previous_etag = response.headers['etag']
+                for prefix in prefixes:
+                    self.assertFalse(getattr(self.other, f'display_{prefix}font_italic'))
+
+    def test_italic_migration_is_repeatable_and_preserves_existing_styles(self):
+        legacy_engine = create_engine('sqlite://')
+        try:
+            with legacy_engine.begin() as connection:
+                connection.execute(text('CREATE TABLE parishes (id INTEGER PRIMARY KEY, plan TEXT, display_font_bold BOOLEAN)'))
+                connection.execute(text("INSERT INTO parishes VALUES (1, 'trial', 1)"))
+                connection.execute(text('CREATE TABLE payment_submissions (id INTEGER, parish_id INTEGER, plan TEXT, status TEXT, confirmed_at TIMESTAMP)'))
+            with patch.object(main, 'engine', legacy_engine):
+                main.ensure_subscription_schema()
+                main.ensure_subscription_schema()
+            with legacy_engine.connect() as connection:
+                row = connection.execute(text('SELECT * FROM parishes')).mappings().one()
+                self.assertTrue(row['display_font_bold'])
+                for prefix in ('', 'parish_', 'title_', 'transition_'):
+                    self.assertFalse(row[f'display_{prefix}font_italic'])
+        finally:
+            legacy_engine.dispose()
 
     def test_display_settings_reject_less_than_four_names(self):
         with self.assertRaises(HTTPException) as raised:

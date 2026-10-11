@@ -1,0 +1,4 @@
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_font_italic BOOLEAN DEFAULT FALSE;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_parish_font_italic BOOLEAN DEFAULT FALSE;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_title_font_italic BOOLEAN DEFAULT FALSE;
+ALTER TABLE parishes ADD COLUMN IF NOT EXISTS display_transition_font_italic BOOLEAN DEFAULT FALSE;

@@ -476,6 +476,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   .print-name { display: block; font-size: 11px; line-height: 1.5; }
 }
+.font-format-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.font-format-row input[type="number"] { flex:1; min-width:80px; width:80px; }
+.format-toggle { min-height:40px; padding:8px 12px; border:1px solid var(--border);
+  border-radius:6px; background:var(--card); color:var(--text); cursor:pointer; font-size:13px; }
+.format-toggle[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+.format-toggle:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 </style>
 </head>
 <body>
@@ -862,12 +868,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         <div class="form-card">
           <div style="font-size:13px;font-weight:500;margin-bottom:14px">Name text settings</div>
           <div class="form-row">
-            <label><input type="checkbox" id="t-bold" onchange="previewTheme()"> Bold names</label>
-          </div>
-          <div class="form-row">
-            <label>Font size (0 = Default — automatic)</label>
-            <input type="number" id="t-font-size" min="0" max="120" value="0"
-              oninput="previewTheme()">
+            <label for="t-font-size">Font size (0 = Default — automatic)</label>
+            <div class="font-format-row">
+              <input type="number" id="t-font-size" min="0" max="120" value="0" oninput="previewTheme()">
+              <button type="button" class="format-toggle" id="t-bold" aria-label="Bold names" aria-pressed="false" onclick="toggleFormat(this)"><strong>Bold</strong></button>
+              <button type="button" class="format-toggle" id="t-italic" aria-label="Italic names" aria-pressed="false" onclick="toggleFormat(this)"><em>Italic</em></button>
+            </div>
           </div>
           <div class="form-row">
             <label>Font</label>
@@ -911,11 +917,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             </div>
           </div>
           <div class="form-row">
-            <label><input type="checkbox" id="t-parish-bold" onchange="previewTheme()" checked> Bold parish name</label>
-          </div>
-          <div class="form-row">
-            <label>Font size (Default = 20px)</label>
-            <input type="number" id="t-parish-size" min="0" max="72" value="20" oninput="previewTheme()">
+            <label for="t-parish-size">Font size (Default = 20px)</label>
+            <div class="font-format-row">
+              <input type="number" id="t-parish-size" min="0" max="72" value="20" oninput="previewTheme()">
+              <button type="button" class="format-toggle" id="t-parish-bold" aria-label="Bold parish name" aria-pressed="true" onclick="toggleFormat(this)"><strong>Bold</strong></button>
+              <button type="button" class="format-toggle" id="t-parish-italic" aria-label="Italic parish name" aria-pressed="false" onclick="toggleFormat(this)"><em>Italic</em></button>
+            </div>
           </div>
           <div class="form-row">
             <label>Font</label>
@@ -941,11 +948,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             Applies to headings such as Thanksgiving, Souls, and Gift of Life.
           </div>
           <div class="form-row">
-            <label><input type="checkbox" id="t-title-bold" onchange="previewTheme()" checked> Bold intention title</label>
-          </div>
-          <div class="form-row">
-            <label>Font size (Default = 30px)</label>
-            <input type="number" id="t-title-size" min="0" max="72" value="30" oninput="previewTheme()">
+            <label for="t-title-size">Font size (Default = 30px)</label>
+            <div class="font-format-row">
+              <input type="number" id="t-title-size" min="0" max="72" value="30" oninput="previewTheme()">
+              <button type="button" class="format-toggle" id="t-title-bold" aria-label="Bold intention title" aria-pressed="true" onclick="toggleFormat(this)"><strong>Bold</strong></button>
+              <button type="button" class="format-toggle" id="t-title-italic" aria-label="Italic intention title" aria-pressed="false" onclick="toggleFormat(this)"><em>Italic</em></button>
+            </div>
           </div>
           <div class="form-row">
             <label>Font</label>
@@ -984,11 +992,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             </div>
           </div>
           <div class="form-row">
-            <label><input type="checkbox" id="t-transition-bold" onchange="previewTheme()"> Bold transition text</label>
-          </div>
-          <div class="form-row">
-            <label>Font size (0 = Default — automatic)</label>
-            <input type="number" id="t-transition-size" min="0" max="120" value="0" oninput="previewTheme()">
+            <label for="t-transition-size">Font size (0 = Default — automatic)</label>
+            <div class="font-format-row">
+              <input type="number" id="t-transition-size" min="0" max="120" value="0" oninput="previewTheme()">
+              <button type="button" class="format-toggle" id="t-transition-bold" aria-label="Bold transition text" aria-pressed="false" onclick="toggleFormat(this)"><strong>Bold</strong></button>
+              <button type="button" class="format-toggle" id="t-transition-italic" aria-label="Italic transition text" aria-pressed="false" onclick="toggleFormat(this)"><em>Italic</em></button>
+            </div>
           </div>
           <div class="form-row">
             <label>Font</label>
@@ -3634,26 +3643,43 @@ function applyPreset(name) {
   previewTheme();
 }
 
+function formatEnabled(id) {
+  return document.getElementById(id).getAttribute('aria-pressed') === 'true';
+}
+
+function setFormat(id, enabled) {
+  document.getElementById(id).setAttribute('aria-pressed', String(Boolean(enabled)));
+}
+
+function toggleFormat(button) {
+  setFormat(button.id, !formatEnabled(button.id));
+  previewTheme();
+}
+
 function resetThemeDefaults() {
   applyPreset('classic');
   document.getElementById('t-font').value = 'Georgia';
   document.getElementById('t-font-size').value = 0;
-  document.getElementById('t-bold').checked = false;
+  setFormat('t-bold', false);
+  setFormat('t-italic', false);
   document.getElementById('t-text-case').value = 'original';
   document.getElementById('t-parish-font').value = 'Georgia';
   document.getElementById('t-parish-name').value = PARISH_NAME;
   document.getElementById('t-parish-size').value = 20;
-  document.getElementById('t-parish-bold').checked = true;
+  setFormat('t-parish-bold', true);
+  setFormat('t-parish-italic', false);
   document.getElementById('t-parish-case').value = 'upper';
   document.getElementById('t-title-font').value = 'Georgia';
   document.getElementById('t-title-size').value = 30;
-  document.getElementById('t-title-bold').checked = true;
+  setFormat('t-title-bold', true);
+  setFormat('t-title-italic', false);
   document.getElementById('t-title-case').value = 'upper';
   document.getElementById('t-transition-color').value = '#c9b97a';
   document.getElementById('t-transition-color-hex').value = '#c9b97a';
   document.getElementById('t-transition-font').value = 'Georgia';
   document.getElementById('t-transition-size').value = 0;
-  document.getElementById('t-transition-bold').checked = false;
+  setFormat('t-transition-bold', false);
+  setFormat('t-transition-italic', false);
   document.getElementById('t-transition-case').value = 'upper';
   previewTheme();
 }
@@ -3697,7 +3723,8 @@ function previewTheme() {
   );
   prevParish.style.color = document.getElementById('t-parish-color').value;
   prevParish.style.fontFamily = `"${parishFont}", serif`;
-  prevParish.style.fontWeight = document.getElementById('t-parish-bold').checked ? '700' : '400';
+  prevParish.style.fontWeight = formatEnabled('t-parish-bold') ? '700' : '400';
+  prevParish.style.fontStyle = formatEnabled('t-parish-italic') ? 'italic' : 'normal';
   prevParish.style.fontSize = parishSize ? Math.min(parishSize, 24) + 'px' : '8px';
 
   const prevTitle = document.getElementById('prev-cat');
@@ -3709,7 +3736,8 @@ function previewTheme() {
   );
   prevTitle.style.color = label;
   prevTitle.style.fontFamily = `"${titleFont}", serif`;
-  prevTitle.style.fontWeight = document.getElementById('t-title-bold').checked ? '700' : '400';
+  prevTitle.style.fontWeight = formatEnabled('t-title-bold') ? '700' : '400';
+  prevTitle.style.fontStyle = formatEnabled('t-title-italic') ? 'italic' : 'normal';
   prevTitle.style.fontSize = titleSize ? Math.min(titleSize, 28) + 'px' : '9px';
   const prevTransition = document.getElementById('prev-transition');
   const transitionSize = Number(document.getElementById('t-transition-size').value);
@@ -3721,20 +3749,22 @@ function previewTheme() {
   prevTransition.style.fontFamily =
     `"${document.getElementById('t-transition-font').value}", serif`;
   prevTransition.style.fontWeight =
-    document.getElementById('t-transition-bold').checked ? '700' : '400';
+    formatEnabled('t-transition-bold') ? '700' : '400';
+  prevTransition.style.fontStyle = formatEnabled('t-transition-italic') ? 'italic' : 'normal';
   prevTransition.style.fontSize =
     transitionSize ? Math.min(transitionSize, 32) + 'px' : '12px';
   document.getElementById('prev-name1').style.color = text;
   document.getElementById('prev-name2').style.color = text;
   document.getElementById('prev-name3').style.color = text;
   const font = document.getElementById('t-font').value;
-  const bold = document.getElementById('t-bold').checked;
+  const bold = formatEnabled('t-bold');
   const size = Number(document.getElementById('t-font-size').value);
   ['prev-name1','prev-name2','prev-name3'].forEach((id, index) => {
     const el = document.getElementById(id);
     el.textContent = previewCase(['Reyes Family','Santos Family','dela Cruz Family'][index]);
     el.style.fontFamily = `"${font}", serif`;
     el.style.fontWeight = bold ? '700' : '400';
+    el.style.fontStyle = formatEnabled('t-italic') ? 'italic' : 'normal';
     el.style.fontSize = size ? Math.min(size, 40) + 'px' : '15px';
   });
 
@@ -3765,24 +3795,28 @@ async function loadTheme() {
     document.getElementById('t-bg-fit').value     = data.display_bg_fit;
     document.getElementById('t-font').value       = data.display_font_family;
     document.getElementById('t-font-size').value  = data.display_font_size;
-    document.getElementById('t-bold').checked     = data.display_font_bold;
+    setFormat('t-bold', data.display_font_bold);
+    setFormat('t-italic', data.display_font_italic);
     document.getElementById('t-text-case').value  = data.display_text_case;
     document.getElementById('t-parish-name').value = data.display_parish_name;
     document.getElementById('t-parish-color').value = data.display_parish_color;
     document.getElementById('t-parish-color-hex').value = data.display_parish_color;
     document.getElementById('t-parish-font').value = data.display_parish_font_family;
     document.getElementById('t-parish-size').value = data.display_parish_font_size;
-    document.getElementById('t-parish-bold').checked = data.display_parish_font_bold;
+    setFormat('t-parish-bold', data.display_parish_font_bold);
+    setFormat('t-parish-italic', data.display_parish_font_italic);
     document.getElementById('t-parish-case').value = data.display_parish_text_case;
     document.getElementById('t-title-font').value = data.display_title_font_family;
     document.getElementById('t-title-size').value = data.display_title_font_size;
-    document.getElementById('t-title-bold').checked = data.display_title_font_bold;
+    setFormat('t-title-bold', data.display_title_font_bold);
+    setFormat('t-title-italic', data.display_title_font_italic);
     document.getElementById('t-title-case').value = data.display_title_text_case;
     document.getElementById('t-transition-color').value = data.display_transition_color;
     document.getElementById('t-transition-color-hex').value = data.display_transition_color;
     document.getElementById('t-transition-font').value = data.display_transition_font_family;
     document.getElementById('t-transition-size').value = data.display_transition_font_size;
-    document.getElementById('t-transition-bold').checked = data.display_transition_font_bold;
+    setFormat('t-transition-bold', data.display_transition_font_bold);
+    setFormat('t-transition-italic', data.display_transition_font_italic);
     document.getElementById('t-transition-case').value = data.display_transition_text_case;
     savedBackgroundImageUrl = data.background_image_url;
     pendingBackgroundImage = null;
@@ -3819,28 +3853,32 @@ async function saveTheme() {
         remove_background_image: removeSavedBackgroundImage,
         display_font_family: document.getElementById('t-font').value,
         display_font_size: Number(document.getElementById('t-font-size').value),
-        display_font_bold: document.getElementById('t-bold').checked,
+        display_font_bold: formatEnabled('t-bold'),
+        display_font_italic: formatEnabled('t-italic'),
         display_text_case: document.getElementById('t-text-case').value,
         display_parish_name: document.getElementById('t-parish-name').value,
         display_parish_color: document.getElementById('t-parish-color').value,
         display_parish_font_family: document.getElementById('t-parish-font').value,
         display_parish_font_size: Number(document.getElementById('t-parish-size').value),
-        display_parish_font_bold: document.getElementById('t-parish-bold').checked,
+        display_parish_font_bold: formatEnabled('t-parish-bold'),
+        display_parish_font_italic: formatEnabled('t-parish-italic'),
         display_parish_text_case: document.getElementById('t-parish-case').value,
         display_title_font_family: document.getElementById('t-title-font').value,
         display_title_font_size: Number(document.getElementById('t-title-size').value),
-        display_title_font_bold: document.getElementById('t-title-bold').checked,
+        display_title_font_bold: formatEnabled('t-title-bold'),
+        display_title_font_italic: formatEnabled('t-title-italic'),
         display_title_text_case: document.getElementById('t-title-case').value,
         display_transition_color: document.getElementById('t-transition-color').value,
         display_transition_font_family: document.getElementById('t-transition-font').value,
         display_transition_font_size: Number(document.getElementById('t-transition-size').value),
-        display_transition_font_bold: document.getElementById('t-transition-bold').checked,
+        display_transition_font_bold: formatEnabled('t-transition-bold'),
+        display_transition_font_italic: formatEnabled('t-transition-italic'),
         display_transition_text_case: document.getElementById('t-transition-case').value,
       })
     });
     if (!res.ok) throw new Error();
     msg.className   = 'ok';
-    msg.textContent = '✓ Theme saved. Display page will use new colors.';
+    msg.textContent = '✓ Theme saved. Display page will use the saved colors and text formatting.';
     await loadTheme();
     setTimeout(() => { msg.textContent = ''; msg.className = ''; }, 4000);
   } catch(e) {

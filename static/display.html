@@ -70,7 +70,7 @@ html, body {
   width: 100%; text-align: center; padding: 0 2vw;
 }
 .name-text {
-  display: block; font-weight: var(--name-weight, 400); color: var(--text);
+  display: block; font-weight: var(--name-weight, 400); font-style: var(--name-style, normal); color: var(--text);
   letter-spacing: 0.04em; line-height: 1.15;
   font-size: var(--name-fs, 5vh);
   white-space: nowrap; overflow: hidden;
@@ -639,16 +639,20 @@ function applyTheme(d) {
   rotateMs = Math.max(2000, Math.min(60000,
     (Number(d.display_interval_seconds) || 5) * 1000));
   root.style.setProperty('--name-weight', d.display_font_bold ? '700' : '400');
+  root.style.setProperty('--name-style', d.display_font_italic ? 'italic' : 'normal');
   document.body.style.fontFamily = `"${d.display_font_family || 'Georgia'}", serif`;
   root.style.setProperty('--parish-color', d.display_parish_color || '#8a7f6a');
   root.style.setProperty('--parish-weight', d.display_parish_font_bold ? '700' : '400');
   root.style.setProperty('--title-weight', d.display_title_font_bold ? '700' : '400');
+  parishEl.style.fontStyle = d.display_parish_font_italic ? 'italic' : 'normal';
   parishEl.style.fontFamily = `"${d.display_parish_font_family || 'Georgia'}", serif`;
   parishEl.style.fontSize = Number(d.display_parish_font_size)
     ? `${d.display_parish_font_size}px` : '';
+  categoryEl.style.fontStyle = d.display_title_font_italic ? 'italic' : 'normal';
   categoryEl.style.fontFamily = `"${d.display_title_font_family || 'Georgia'}", serif`;
   categoryEl.style.fontSize = Number(d.display_title_font_size)
     ? `${d.display_title_font_size}px` : '';
+  wipeCat.style.fontStyle = d.display_transition_font_italic ? 'italic' : 'normal';
   wipeCat.style.fontFamily = `"${d.display_transition_font_family || 'Georgia'}", serif`;
   wipeCat.style.fontWeight = d.display_transition_font_bold ? '700' : '400';
   wipeCat.style.fontSize = Number(d.display_transition_font_size)

@@ -25,6 +25,10 @@ def ensure_subscription_schema():
     additions = {
         "parishes": {
             "subscription_plan": "VARCHAR(20)",
+            "display_transition_font_italic": "BOOLEAN DEFAULT FALSE",
+            "display_title_font_italic": "BOOLEAN DEFAULT FALSE",
+            "display_parish_font_italic": "BOOLEAN DEFAULT FALSE",
+            "display_font_italic": "BOOLEAN DEFAULT FALSE",
         },
         "payment_submissions": {
             "payment_date": "TIMESTAMP",
@@ -1061,6 +1065,7 @@ def get_display_intentions(
             ),
             "display_font_family": parish.display_font_family or "Georgia",
             "display_font_size": parish.display_font_size or 0,
+            "display_font_italic": bool(parish.display_font_italic),
             "display_font_bold": bool(parish.display_font_bold),
             "display_text_case": (
                 "proper" if parish.display_text_case == "sentence"
@@ -1069,6 +1074,7 @@ def get_display_intentions(
             "display_parish_color": parish.display_parish_color or "#8a7f6a",
             "display_parish_font_family": parish.display_parish_font_family or "Georgia",
             "display_parish_font_size": parish.display_parish_font_size or 20,
+            "display_parish_font_italic": bool(parish.display_parish_font_italic),
             "display_parish_font_bold": (
                 True if parish.display_parish_font_bold is None
                 else bool(parish.display_parish_font_bold)
@@ -1076,6 +1082,7 @@ def get_display_intentions(
             "display_parish_text_case": parish.display_parish_text_case or "upper",
             "display_title_font_family": parish.display_title_font_family or "Georgia",
             "display_title_font_size": parish.display_title_font_size or 30,
+            "display_title_font_italic": bool(parish.display_title_font_italic),
             "display_title_font_bold": (
                 True if parish.display_title_font_bold is None
                 else bool(parish.display_title_font_bold)
@@ -1084,6 +1091,7 @@ def get_display_intentions(
             "display_transition_color": parish.display_transition_color or "#c9b97a",
             "display_transition_font_family": parish.display_transition_font_family or "Georgia",
             "display_transition_font_size": parish.display_transition_font_size or 0,
+            "display_transition_font_italic": bool(parish.display_transition_font_italic),
             "display_transition_font_bold": bool(parish.display_transition_font_bold),
             "display_transition_text_case": parish.display_transition_text_case or "upper",
             "categories":   []
@@ -2282,21 +2290,25 @@ class ThemeUpdate(BaseModel):
     display_font_family: str = "Georgia"
     display_font_size: int = 0
     display_font_bold: bool = False
+    display_font_italic: bool = False
     display_text_case: str = "original"
     display_parish_name: str = ""
     display_parish_color: str = "#8a7f6a"
     display_parish_font_family: str = "Georgia"
     display_parish_font_size: int = 20
     display_parish_font_bold: bool = True
+    display_parish_font_italic: bool = False
     display_parish_text_case: str = "upper"
     display_title_font_family: str = "Georgia"
     display_title_font_size: int = 30
     display_title_font_bold: bool = True
+    display_title_font_italic: bool = False
     display_title_text_case: str = "upper"
     display_transition_color: str = "#c9b97a"
     display_transition_font_family: str = "Georgia"
     display_transition_font_size: int = 0
     display_transition_font_bold: bool = False
+    display_transition_font_italic: bool = False
     display_transition_text_case: str = "upper"
 
 DISPLAY_FONTS = {
@@ -2331,6 +2343,7 @@ def get_theme(
         ),
         "display_font_family": parish.display_font_family or "Georgia",
         "display_font_size": parish.display_font_size or 0,
+        "display_font_italic": bool(parish.display_font_italic),
         "display_font_bold": bool(parish.display_font_bold),
         "display_text_case": (
             "proper" if parish.display_text_case == "sentence"
@@ -2340,6 +2353,7 @@ def get_theme(
         "display_parish_color": parish.display_parish_color or "#8a7f6a",
         "display_parish_font_family": parish.display_parish_font_family or "Georgia",
         "display_parish_font_size": parish.display_parish_font_size or 20,
+        "display_parish_font_italic": bool(parish.display_parish_font_italic),
         "display_parish_font_bold": (
             True if parish.display_parish_font_bold is None
             else bool(parish.display_parish_font_bold)
@@ -2347,6 +2361,7 @@ def get_theme(
         "display_parish_text_case": parish.display_parish_text_case or "upper",
         "display_title_font_family": parish.display_title_font_family or "Georgia",
         "display_title_font_size": parish.display_title_font_size or 30,
+        "display_title_font_italic": bool(parish.display_title_font_italic),
         "display_title_font_bold": (
             True if parish.display_title_font_bold is None
             else bool(parish.display_title_font_bold)
@@ -2355,6 +2370,7 @@ def get_theme(
         "display_transition_color": parish.display_transition_color or "#c9b97a",
         "display_transition_font_family": parish.display_transition_font_family or "Georgia",
         "display_transition_font_size": parish.display_transition_font_size or 0,
+        "display_transition_font_italic": bool(parish.display_transition_font_italic),
         "display_transition_font_bold": bool(parish.display_transition_font_bold),
         "display_transition_text_case": parish.display_transition_text_case or "upper",
     }
@@ -2434,21 +2450,25 @@ def update_theme(
     parish.display_bg_fit = payload.display_bg_fit
     parish.display_font_family = payload.display_font_family
     parish.display_font_size = payload.display_font_size
+    parish.display_font_italic = payload.display_font_italic
     parish.display_font_bold = payload.display_font_bold
     parish.display_text_case = payload.display_text_case
     parish.display_parish_name = display_parish_name
     parish.display_parish_color = payload.display_parish_color
     parish.display_parish_font_family = payload.display_parish_font_family
     parish.display_parish_font_size = payload.display_parish_font_size
+    parish.display_parish_font_italic = payload.display_parish_font_italic
     parish.display_parish_font_bold = payload.display_parish_font_bold
     parish.display_parish_text_case = payload.display_parish_text_case
     parish.display_title_font_family = payload.display_title_font_family
     parish.display_title_font_size = payload.display_title_font_size
+    parish.display_title_font_italic = payload.display_title_font_italic
     parish.display_title_font_bold = payload.display_title_font_bold
     parish.display_title_text_case = payload.display_title_text_case
     parish.display_transition_color = payload.display_transition_color
     parish.display_transition_font_family = payload.display_transition_font_family
     parish.display_transition_font_size = payload.display_transition_font_size
+    parish.display_transition_font_italic = payload.display_transition_font_italic
     parish.display_transition_font_bold = payload.display_transition_font_bold
     parish.display_transition_text_case = payload.display_transition_text_case
     db.commit()
